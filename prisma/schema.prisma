@@ -14,20 +14,130 @@ enum UserRole {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  passwordHash  String?
-  emailVerified DateTime?
-  image         String?
-  role          UserRole  @default(STUDENT)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  auditLogs     AuditLog[]
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  passwordHash   String?
+  emailVerified  DateTime?
+  image          String?
+  role           UserRole        @default(STUDENT)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  auditLogs      AuditLog[]
+  studentProfile StudentProfile?
 
   @@index([role])
+}
+
+enum PlacementStatus {
+  PREPARING
+  INTERNSHIP
+  PLACED
+  HIGHER_STUDIES
+  NOT_SEEKING
+}
+
+model StudentProfile {
+  id                     String                @id @default(cuid())
+  userId                 String                @unique
+  phone                  String?
+  dateOfBirth            DateTime?
+  location               String?
+  bio                    String?
+  linkedInUrl            String?
+  githubUrl              String?
+  portfolioUrl           String?
+  careerGoal             String?
+  targetRoles            String[]
+  targetCompanies        String[]
+  placementStatus        PlacementStatus       @default(PREPARING)
+  expectedGraduationYear Int?
+  resumeUrl              String?
+  resumeKey              String?
+  resumeName             String?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  user                   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  education              Education[]
+  skills                 Skill[]
+  programmingLanguages   ProgrammingLanguage[]
+  achievements           Achievement[]
+  certificates           Certificate[]
+  projects               Project[]
+}
+
+model Education {
+  id          String         @id @default(cuid())
+  profileId   String
+  institution String
+  degree      String
+  field       String
+  startYear   Int
+  endYear     Int?
+  score       String?
+  profile     StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Skill {
+  id        String         @id @default(cuid())
+  profileId String
+  name      String
+  level     Int
+  profile   StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, name])
+}
+
+model ProgrammingLanguage {
+  id        String         @id @default(cuid())
+  profileId String
+  name      String
+  level     Int
+  profile   StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, name])
+}
+
+model Achievement {
+  id          String         @id @default(cuid())
+  profileId   String
+  title       String
+  description String?
+  achievedAt  DateTime?
+  profile     StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Certificate {
+  id            String         @id @default(cuid())
+  profileId     String
+  name          String
+  issuer        String
+  issuedAt      DateTime?
+  credentialUrl String?
+  profile       StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Project {
+  id            String         @id @default(cuid())
+  profileId     String
+  title         String
+  description   String
+  technologies  String[]
+  projectUrl    String?
+  repositoryUrl String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  profile       StudentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model Account {
@@ -68,12 +178,12 @@ model VerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   email     String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([email, expiresAt])
 }

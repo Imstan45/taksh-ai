@@ -44,7 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     authorized({ auth: session, request }) {
       const path = request.nextUrl.pathname;
-      if (!path.startsWith("/dashboard") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
+      if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
       if (!session?.user) return false;
       if (path.startsWith("/super-admin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "SUPER_ADMIN"].includes(session.user.role);
