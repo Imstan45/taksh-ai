@@ -1,33 +1,31 @@
 import { NextResponse } from "next/server";
-import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { parseJson, authError } from "@/lib/auth/api";
 import { registerSchema } from "@/lib/auth/validation";
-import { createToken, hashToken } from "@/lib/security/tokens";
-import { enforceRateLimit } from "@/lib/security/rate-limit";
-import { requestFingerprint } from "@/lib/security/request";
-import { sendVerificationEmail } from "@/lib/email";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const parsed = await parseJson(request, registerSchema);
   if (!parsed.data) return parsed.error;
   try {
-    const ipHash = await requestFingerprint();
-    await enforceRateLimit("register", ipHash, 5, 60 * 60_000);
-    const existing = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true } });
-    if (existing) return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
-    const token = createToken();
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: { name: parsed.data.name, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12) },
-      });
-      await tx.verificationToken.create({
-        data: { identifier: created.email, token: hashToken(token), expires: new Date(Date.now() + 24 * 60 * 60_000) },
-      });
-      await tx.auditLog.create({ data: { userId: created.id, action: "USER_REGISTERED", ipHash } });
-      return created;
+    const { data, error } = await createSupabaseServerClient().auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: {
+        data: { full_name: parsed.data.name, role: "STUDENT" },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login?verified=true`,
+      },
     });
-    await sendVerificationEmail(user.email, token);
+    if (error) {
+      const status = error.status === 429 ? 429 : error.status === 422 ? 409 : 400;
+      return NextResponse.json({ error: error.message }, { status });
+    }
+    if (!data.user) throw new Error("Supabase did not return a user");
+    await prisma.$executeRaw`
+      INSERT INTO public.students (id, full_name, email)
+      VALUES (${data.user.id}::uuid, ${parsed.data.name}, ${parsed.data.email})
+      ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, updated_at = now()
+    `;
     return NextResponse.json({ message: "Check your email to verify your account" }, { status: 201 });
   } catch (error) { return authError(error); }
 }

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup" | "forgot" | "reset" | "verify";
 const copy = {
@@ -32,15 +33,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
         if (result?.error) throw new Error("Incorrect credentials, or your email is not verified.");
         router.push(params.get("callbackUrl") || "/dashboard"); router.refresh(); return;
       }
-      const endpoint = mode === "signup" ? "register" : mode === "forgot" ? "forgot-password" : mode === "reset" ? "reset-password" : "verify-email";
+      if (mode === "reset") {
+        const { error } = await createSupabaseBrowserClient().auth.updateUser({ password: String(form.get("password") ?? "") });
+        if (error) throw new Error(error.message);
+        setMessage({ type: "success", text: "Password updated. Sign in with your new password." });
+        setTimeout(() => router.push("/login"), 1200);
+        return;
+      }
+      const endpoint = mode === "signup" ? "register" : mode === "forgot" ? "forgot-password" : "verify-email";
       const body: Record<string, unknown> = {};
       form.forEach((value, key) => { body[key] = value; });
-      if (mode === "reset" || mode === "verify") body.token = params.get("token") ?? "";
+      if (mode === "verify") body.token = params.get("token") ?? "";
       const response = await fetch(`/api/auth/${endpoint}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const payload = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.error ?? "Something went wrong");
       setMessage({ type: "success", text: payload.message ?? "Done" });
-      if (mode === "reset" || mode === "verify") setTimeout(() => router.push("/login"), 1200);
+      if (mode === "verify") setTimeout(() => router.push("/login"), 1200);
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "Unable to continue" });
     } finally { setBusy(false); }

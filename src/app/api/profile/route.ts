@@ -4,7 +4,6 @@ import { parseJson, authError } from "@/lib/auth/api";
 import { profileSchema } from "@/lib/profile/validation";
 import { getProfile, saveProfile } from "@/lib/profile/service";
 import { profileCompletion } from "@/lib/profile/completion";
-import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 export async function GET() {
   const session = await auth();
@@ -19,7 +18,6 @@ export async function PUT(request: Request) {
   const parsed = await parseJson(request, profileSchema);
   if (!parsed.data) return parsed.error;
   try {
-    await enforceRateLimit("profile-update", session.user.id, 30, 60_000);
     const profile = await saveProfile(session.user.id, parsed.data);
     return NextResponse.json({ profile, completion: profileCompletion(profile) });
   } catch (error) { return authError(error); }

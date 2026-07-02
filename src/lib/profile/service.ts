@@ -2,43 +2,74 @@ import { prisma } from "@/lib/prisma";
 import { profileCompletion } from "./completion";
 import type { ProfileInput } from "./validation";
 
-const include = {
-  education: true, skills: true, programmingLanguages: true,
-  achievements: true, certificates: true, projects: true,
-} as const;
+type JsonProfile = ProfileInput & {
+  resumeUrl?: string | null;
+  resumeKey?: string | null;
+  resumeName?: string | null;
+};
+
+type ExistingRow = {
+  phone: string | null;
+  career_goal: string | null;
+  profile_json: JsonProfile | null;
+};
 
 export async function getProfile(userId: string) {
-  const profile = await prisma.studentProfile.findUnique({ where: { userId }, include });
+  const rows = await prisma.$queryRaw<ExistingRow[]>`
+    SELECT s.phone, sp.career_goal, sp.profile_json
+    FROM public.students s
+    LEFT JOIN LATERAL (
+      SELECT career_goal, profile_json
+      FROM public.student_profiles
+      WHERE student_id = s.id
+      ORDER BY created_at DESC NULLS LAST
+      LIMIT 1
+    ) sp ON true
+    WHERE s.id = ${userId}::uuid
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row) return { profile: null, completion: 0 };
+  const profile = {
+    ...(row.profile_json ?? {}),
+    phone: row.phone ?? row.profile_json?.phone ?? null,
+    careerGoal: row.career_goal ?? row.profile_json?.careerGoal ?? null,
+  };
   return { profile, completion: profileCompletion(profile) };
 }
 
-const toDate = (value: string | null) => value ? new Date(`${value}T00:00:00.000Z`) : null;
-
 export async function saveProfile(userId: string, input: ProfileInput) {
-  const { education, skills, programmingLanguages, achievements, certificates, projects, dateOfBirth, ...scalar } = input;
   return prisma.$transaction(async (tx) => {
-    const profile = await tx.studentProfile.upsert({
-      where: { userId },
-      create: { userId, ...scalar, dateOfBirth: toDate(dateOfBirth) },
-      update: { ...scalar, dateOfBirth: toDate(dateOfBirth) },
-    });
-    await Promise.all([
-      tx.education.deleteMany({ where: { profileId: profile.id } }),
-      tx.skill.deleteMany({ where: { profileId: profile.id } }),
-      tx.programmingLanguage.deleteMany({ where: { profileId: profile.id } }),
-      tx.achievement.deleteMany({ where: { profileId: profile.id } }),
-      tx.certificate.deleteMany({ where: { profileId: profile.id } }),
-      tx.project.deleteMany({ where: { profileId: profile.id } }),
-    ]);
-    await Promise.all([
-      education.length && tx.education.createMany({ data: education.map((item) => ({ ...item, profileId: profile.id })) }),
-      skills.length && tx.skill.createMany({ data: skills.map((item) => ({ ...item, profileId: profile.id })) }),
-      programmingLanguages.length && tx.programmingLanguage.createMany({ data: programmingLanguages.map((item) => ({ ...item, profileId: profile.id })) }),
-      achievements.length && tx.achievement.createMany({ data: achievements.map((item) => ({ ...item, profileId: profile.id, achievedAt: toDate(item.achievedAt) })) }),
-      certificates.length && tx.certificate.createMany({ data: certificates.map((item) => ({ ...item, profileId: profile.id, issuedAt: toDate(item.issuedAt) })) }),
-      projects.length && tx.project.createMany({ data: projects.map((item) => ({ ...item, profileId: profile.id, startedAt: toDate(item.startedAt), completedAt: toDate(item.completedAt) })) }),
-    ]);
-    await tx.auditLog.create({ data: { userId, action: "PROFILE_UPDATED" } });
-    return tx.studentProfile.findUniqueOrThrow({ where: { userId }, include });
+    await tx.$executeRaw`
+      UPDATE public.students
+      SET phone = ${input.phone}, updated_at = now()
+      WHERE id = ${userId}::uuid
+    `;
+    const existing = await tx.$queryRaw<{ id: string; profile_json: JsonProfile | null }[]>`
+      SELECT id, profile_json
+      FROM public.student_profiles
+      WHERE student_id = ${userId}::uuid
+      ORDER BY created_at DESC NULLS LAST
+      LIMIT 1
+    `;
+    const stored: JsonProfile = {
+      ...input,
+      resumeUrl: existing[0]?.profile_json?.resumeUrl ?? null,
+      resumeKey: existing[0]?.profile_json?.resumeKey ?? null,
+      resumeName: existing[0]?.profile_json?.resumeName ?? null,
+    };
+    if (existing[0]) {
+      await tx.$executeRaw`
+        UPDATE public.student_profiles
+        SET career_goal = ${input.careerGoal}, profile_json = ${JSON.stringify(stored)}::jsonb
+        WHERE id = ${existing[0].id}::uuid
+      `;
+    } else {
+      await tx.$executeRaw`
+        INSERT INTO public.student_profiles (id, student_id, career_goal, profile_json)
+        VALUES (gen_random_uuid(), ${userId}::uuid, ${input.careerGoal}, ${JSON.stringify(stored)}::jsonb)
+      `;
+    }
+    return stored;
   });
 }

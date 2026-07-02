@@ -1,13 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { compare } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/auth/validation";
-import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   trustHost: true,
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   pages: { signIn: "/login" },
@@ -21,10 +17,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           rememberMe: credentials.rememberMe === "true",
         });
         if (!parsed.success) return null;
-        await enforceRateLimit("login", parsed.data.email, 8, 15 * 60_000);
-        const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-        if (!user?.passwordHash || !user.emailVerified || !(await compare(parsed.data.password, user.passwordHash))) return null;
-        return { id: user.id, name: user.name, email: user.email, role: user.role, rememberMe: parsed.data.rememberMe };
+        const { data, error } = await createSupabaseServerClient().auth.signInWithPassword({
+          email: parsed.data.email,
+          password: parsed.data.password,
+        });
+        if (error || !data.user) return null;
+        const role = data.user.user_metadata.role === "COLLEGE_ADMIN" || data.user.user_metadata.role === "SUPER_ADMIN"
+          ? data.user.user_metadata.role
+          : "STUDENT";
+        return {
+          id: data.user.id,
+          name: String(data.user.user_metadata.full_name ?? data.user.email?.split("@")[0] ?? "Student"),
+          email: data.user.email,
+          role,
+          rememberMe: parsed.data.rememberMe,
+        };
       },
     }),
   ],
