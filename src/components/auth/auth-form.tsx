@@ -8,6 +8,20 @@ import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup" | "forgot" | "reset" | "verify";
+const authPaths = new Set(["/login", "/signup", "/forgot-password", "/forgotpassword", "/reset-password", "/verify-email"]);
+
+function safeCallbackUrl(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+
+  try {
+    const url = new URL(value, "http://taksh.local");
+    if (authPaths.has(url.pathname)) return "/dashboard";
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 const copy = {
   login: ["Welcome back", "Continue your preparation journey."],
   signup: ["Create your account", "Your personalized placement journey starts here."],
@@ -31,7 +45,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (mode === "login") {
         const result = await signIn("credentials", { email: form.get("email"), password: form.get("password"), rememberMe: form.get("rememberMe") === "on", redirect: false });
         if (result?.error) throw new Error("Incorrect credentials, or your email is not verified.");
-        router.push(params.get("callbackUrl") || "/dashboard"); router.refresh(); return;
+        router.push(safeCallbackUrl(params.get("callbackUrl"))); router.refresh(); return;
       }
       if (mode === "reset") {
         const { error } = await createSupabaseBrowserClient().auth.updateUser({ password: String(form.get("password") ?? "") });
