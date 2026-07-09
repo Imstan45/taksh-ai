@@ -3,6 +3,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { LearningStyleQuiz } from "@/components/learning-style/learning-style-quiz";
+import type { LearningStyle } from "@/lib/learning-style/quiz";
 
 const modulePlan = [
   { title: "Quantitative Aptitude", count: 50, href: "#", note: "Percentages, ratios, profit-loss, time-work" },
@@ -12,7 +14,18 @@ const modulePlan = [
   { title: "Reading Comprehension", count: 50, href: "#", note: "Inference, tone, assumption and conclusion" },
 ];
 
-type Row = { profile_json: { profiling?: { readinessScore?: number; level?: string; weakAreas?: string[]; strongAreas?: string[]; categoryScores?: Array<{ category: string; score: number; level: string }> } } | null };
+type Row = {
+  learning_style: LearningStyle | null;
+  profile_json: {
+    profiling?: {
+      readinessScore?: number;
+      level?: string;
+      weakAreas?: string[];
+      strongAreas?: string[];
+      categoryScores?: Array<{ category: string; score: number; level: string }>;
+    };
+  } | null;
+};
 
 const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 
@@ -21,7 +34,7 @@ export default async function ContinueLearningPage() {
   if (!session?.user) redirect("/login?callbackUrl=/continue-learning");
 
   const rows = await prisma.$queryRaw<Row[]>`
-    SELECT profile_json
+    SELECT learning_style, profile_json
     FROM public.student_profiles
     WHERE student_id = ${session.user.id}::uuid
     ORDER BY created_at DESC NULLS LAST
@@ -29,6 +42,7 @@ export default async function ContinueLearningPage() {
   `;
 
   const profiling = rows[0]?.profile_json?.profiling;
+  const learningStyle = rows[0]?.learning_style ?? null;
   if (!profiling) redirect("/profiling");
 
   return (
@@ -53,24 +67,45 @@ export default async function ContinueLearningPage() {
           <div className="glass-card">
             <h1 className="text-2xl font-semibold">Continue learning</h1>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Your static profile test is complete. Next, each module will have 50 standard questions. Today these can be static; tomorrow we can connect Grok to generate adaptive practice.
+              Your static profile test is complete. Next, save your learning style so practice modules can adapt to you.
             </p>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {modulePlan.map((module) => (
-              <div key={module.title} className="glass-card">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-medium">{module.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-zinc-500">{module.note}</p>
-                  </div>
-                  <span className="rounded-full bg-violet-500/15 px-3 py-1 text-xs text-violet-200">{module.count} Qs</span>
-                </div>
-                <Link href={module.href} className="btn-ghost mt-5 border border-white/10">Start module</Link>
-              </div>
-            ))}
+          <div className="mt-6">
+            <LearningStyleQuiz initialLearningStyle={learningStyle} />
           </div>
+
+          {learningStyle ? (
+            <>
+              <div className="glass-card mt-6 border border-emerald-400/20 bg-emerald-400/5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="eyebrow">Next step</p>
+                    <h2 className="mt-3 text-2xl font-semibold">Take aptitude assessment</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+                      Answer 30 random aptitude questions from the question bank in 30 minutes, then review your score with explanations.
+                    </p>
+                  </div>
+                  <Link className="btn-primary shrink-0" href="/assessment">Start assessment</Link>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {modulePlan.map((module) => (
+                  <div key={module.title} className="glass-card">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-medium">{module.title}</h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">{module.note}</p>
+                      </div>
+                      <span className="rounded-full bg-violet-500/15 px-3 py-1 text-xs text-violet-200">{module.count} Qs</span>
+                    </div>
+                    <Link href={module.href} className="btn-ghost mt-5 border border-white/10">Start module</Link>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
         </section>
       </div>
     </DashboardShell>

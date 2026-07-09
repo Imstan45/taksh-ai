@@ -35,16 +35,13 @@ export default async function Page() {
   return (
     <DashboardShell {...session.user}>
       {!profiling ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="glass-card">
+        <div className="glass-card">
           <p className="eyebrow">First step</p>
           <h2 className="mt-5 text-2xl font-semibold">Take your placement profiling test</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
             Answer 20 static questions across aptitude, logical reasoning, directions, English and reading comprehension. Taksh AI will score you using both accuracy and time.
           </p>
           <Link className="btn-primary mt-6" href="/profiling">Start profiling test</Link>
-          </div>
-          <AssessmentCard />
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -65,39 +62,22 @@ export default async function Page() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <Link className="btn-primary" href="/continue-learning">Continue learning</Link>
-              <Link className="btn-ghost border border-white/10" href="/assessment">Take aptitude assessment</Link>
             </div>
           </section>
 
-          <div className="grid gap-6">
-            <AssessmentCard />
-            <aside className="glass-card h-fit">
-              <h3 className="font-medium">Focus areas</h3>
-              <p className="mt-3 text-sm text-zinc-500">Weak areas</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(profiling.weakAreas?.length ? profiling.weakAreas : ["No major weak area yet"]).map((item) => <span key={item} className="rounded-full bg-red-500/10 px-3 py-1 text-xs text-red-200">{label(item)}</span>)}
-              </div>
-              <p className="mt-5 text-sm text-zinc-500">Strong areas</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(profiling.strongAreas?.length ? profiling.strongAreas : ["Build more consistency"]).map((item) => <span key={item} className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">{label(item)}</span>)}
-              </div>
-            </aside>
-          </div>
+          <aside className="glass-card h-fit">
+            <h3 className="font-medium">Focus areas</h3>
+            <p className="mt-3 text-sm text-zinc-500">Weak areas</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(profiling.weakAreas?.length ? profiling.weakAreas : ["No major weak area yet"]).map((item) => <span key={item} className="rounded-full bg-red-500/10 px-3 py-1 text-xs text-red-200">{label(item)}</span>)}
+            </div>
+            <p className="mt-5 text-sm text-zinc-500">Strong areas</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(profiling.strongAreas?.length ? profiling.strongAreas : ["Build more consistency"]).map((item) => <span key={item} className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">{label(item)}</span>)}
+            </div>
+          </aside>
         </div>
       )}
     </DashboardShell>
-  );
-}
-
-function AssessmentCard() {
-  return (
-    <aside className="glass-card h-fit">
-      <p className="eyebrow">Assessment</p>
-      <h3 className="mt-4 text-xl font-semibold">Aptitude assessment</h3>
-      <p className="mt-3 text-sm leading-6 text-zinc-400">
-        Get 30 random aptitude questions from the question bank, answer within 30 minutes, then review your score with explanations.
-      </p>
-      <Link className="btn-primary mt-5 w-full" href="/assessment">Start assessment</Link>
-    </aside>
   );
 }

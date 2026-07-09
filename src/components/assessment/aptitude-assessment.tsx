@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, RotateCcw, XCircle } from "lucide-react";
+import Link from "next/link";
 
 type OptionKey = "A" | "B" | "C" | "D";
 
@@ -119,7 +120,11 @@ export function AptitudeAssessment() {
           Generate questions in the question bank first, then return here to start a 30-question assessment.
         </p>
         {error ? <p className="mt-4 rounded-xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p> : null}
-        <button className="btn-primary mt-6" type="button" onClick={loadAssessment}>Try again</button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button className="btn-primary" type="button" onClick={loadAssessment}>Try again</button>
+          <Link className="btn-ghost border border-white/10" href="/dashboard">Dashboard</Link>
+          <Link className="btn-ghost border border-white/10" href="/continue-learning">Continue learning</Link>
+        </div>
       </div>
     );
   }
@@ -185,7 +190,11 @@ export function AptitudeAssessment() {
               <p className="text-sm text-violet-200">Final score</p>
               <h3 className="mt-2 text-5xl font-semibold">{score}/{questions.length}</h3>
               <p className="mt-3 text-sm text-zinc-300">You answered {answeredCount} questions. Review the explanations below to understand each solution.</p>
-              <button className="btn-primary mt-5" type="button" onClick={loadAssessment}><RotateCcw className="size-4" /> Start new random assessment</button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button className="btn-primary" type="button" onClick={loadAssessment}><RotateCcw className="size-4" /> Start new random assessment</button>
+                <Link className="btn-ghost border border-white/10" href="/dashboard">Dashboard</Link>
+                <Link className="btn-ghost border border-white/10" href="/continue-learning">Continue learning</Link>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-4">
