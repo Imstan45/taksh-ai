@@ -13,9 +13,15 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
+    { href: "/admin/faculty/learners", label: "Learners" },
+    { href: "/admin/faculty/content", label: "Teaching content" },
   ],
   COLLEGE_ADMIN: [
     { href: "/admin", label: "College administration" },
+    { href: "/admin/departments", label: "Departments" },
+    { href: "/admin/academics", label: "Academics" },
+    { href: "/admin/people", label: "People" },
+    { href: "/admin/courses", label: "Courses" },
   ],
   SUPER_ADMIN: [
     { href: "/super-admin", label: "Platform dashboard" },
