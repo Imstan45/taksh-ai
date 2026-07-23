@@ -130,9 +130,6 @@ function sampleAsset(form: FormState) {
 export default function Home() {
   const [screen, setScreen] = useState<"create" | "library" | "settings">("create");
   const [form, setForm] = useState(initialForm);
-  const [apiKey, setApiKey] = useState("");
-  const [supabaseUrl, setSupabaseUrl] = useState("");
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState("");
   const [model, setModel] = useState("gemini-3.6-flash");
   const [generationMode, setGenerationMode] = useState<"batch" | "single">("batch");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -141,7 +138,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [config, setConfig] = useState({ gemini: false, supabase: false });
+  const [config, setConfig] = useState({ gemini: false, supabase: false, database: false, authentication: false });
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<AssetRecord | null>(null);
   const [search, setSearch] = useState("");
@@ -209,6 +206,8 @@ export default function Home() {
         setConfig({
           gemini: environment.gemini,
           supabase: environment.supabase,
+          database: environment.database,
+          authentication: environment.authentication,
         });
       }
     } catch {
@@ -459,20 +458,6 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }
 
-  async function saveConnections() {
-    await loadConfiguration();
-    setNotice("Connections saved in this browser. Checking Supabase curriculum…");
-    await Promise.all([
-      loadAssets("", "all"),
-      loadCurriculum(initialForm.course, initialForm.module, initialForm.topic),
-    ]);
-    setScreen("create");
-  }
-
-  function clearConnections() {
-    setNotice("Connections are managed through secure server environment variables.");
-  }
-
   const selectedContent = result?.[activeSection];
 
   return (
@@ -593,7 +578,7 @@ export default function Home() {
 
           <fieldset className="connection">
             <legend>Gemini connection</legend>
-            {config.gemini ? <p className="connected-copy">● Gemini API is connected through the web app settings.</p> : <p>Open Settings and paste your Gemini API key.</p>}
+            {config.gemini ? <p className="connected-copy">● Gemini is configured securely on the server.</p> : <p>Gemini is missing from the server environment.</p>}
               <label>Model<select value={model} onChange={(e) => setModel(e.target.value)}><option value="gemini-3.6-flash">Gemini 3.6 Flash — recommended</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — lower cost</option><option value="gemini-flash-latest">Gemini Flash Latest — rolling alias</option></select></label>
           </fieldset>
 
@@ -695,22 +680,28 @@ export default function Home() {
       </section>}
 
       {screen === "settings" && <section className="settings-page">
-        <div className="page-title"><div><p className="eyebrow">Application setup</p><h1>Connections</h1><p>Add these values to the app environment. Secrets never appear in generated content.</p></div></div>
+        <div className="page-title"><div><p className="eyebrow">Application setup</p><h1>Configuration status</h1><p>Read-only server readiness. Secret values are never sent to this browser.</p></div></div>
         <div className="settings-grid">
-          <article><div className={`connection-icon ${config.gemini ? "ok" : ""}`}>G</div><div className="connection-form"><h2>Gemini API</h2><p>Powers full asset generation and focused section regeneration.</p><label>Gemini API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste Gemini API key" autoComplete="off" /></label><span className="connection-state">{config.gemini ? "● Saved in this browser" : "○ Not configured"}</span></div></article>
-          <article><div className={`connection-icon ${config.supabase ? "ok" : ""}`}>S</div><div className="connection-form"><h2>Supabase</h2><p>Stores canonical assets, review states and immutable version history.</p><label>Supabase project URL<input value={supabaseUrl} onChange={(event) => setSupabaseUrl(event.target.value)} placeholder="https://your-project.supabase.co" /></label><label>Supabase anon key<input type="password" value={supabaseAnonKey} onChange={(event) => setSupabaseAnonKey(event.target.value)} placeholder="Paste anon key" autoComplete="off" /></label><span className="connection-state">{config.supabase ? "● Saved in this browser" : "○ Not configured"}</span></div></article>
+          <StatusCard icon="G" title="Gemini" description="Generation and section regeneration" ready={config.gemini} />
+          <StatusCard icon="S" title="Supabase" description="Server URL and service authentication" ready={config.supabase} />
+          <StatusCard icon="D" title="Database" description="Curriculum database connection" ready={config.database} unavailable />
+          <StatusCard icon="A" title="Content Factory authentication" description="Signed Super Admin launch protection" ready={config.authentication} />
         </div>
-        <div className="connection-actions"><button className="secondary" onClick={clearConnections}>Clear saved values</button><button className="primary" onClick={saveConnections}>Save & connect <span>→</span></button></div>
+        <div className="connection-actions"><button className="primary" onClick={() => void loadConfiguration()}>Refresh status</button></div>
         <div className="setup-guide">
           <span className="step">01</span><div><h3>Create the Supabase tables</h3><p>Run the included <code>supabase/schema.sql</code> file once in the Supabase SQL editor. It also creates the cascading curriculum table and starter hierarchy.</p></div>
-          <span className="step">02</span><div><h3>Paste the three connection values above</h3><p>Choose “Save & connect”. The values stay only in this browser’s local storage and are not written into the source files.</p></div>
+          <span className="step">02</span><div><h3>Configure deployment environment variables</h3><p>Set Gemini, Supabase service credentials and the shared authentication secret in the deployment environment.</p></div>
           <span className="step">03</span><div><h3>Start the curriculum loop</h3><p>Return to Create and select “Generate full curriculum”. Each completed asset will automatically appear in the library.</p></div>
         </div>
-        <div className="security-note"><b>Deployment note</b><p>The supplied anon-key policies are intended for this private admin app. If the app becomes public, add Supabase authentication and user-based RLS before exposing it.</p></div>
+        <div className="security-note"><b>Security note</b><p>Configuration is server-owned. This page intentionally cannot read or modify credentials.</p></div>
       </section>}
       <footer><span>Taksh AI · Content Factory</span><span>Original AI draft · Human review required</span></footer>
     </main>
   );
+}
+
+function StatusCard({ icon, title, description, ready, unavailable = false }: { icon: string; title: string; description: string; ready: boolean; unavailable?: boolean }) {
+  return <article><div className={`connection-icon ${ready ? "ok" : ""}`}>{icon}</div><div className="connection-form"><h2>{title}</h2><p>{description}</p><span className="connection-state">{ready ? "● Configured" : unavailable ? "○ Connection unavailable" : "○ Missing"}</span></div></article>;
 }
 
 function JsonContent({ value }: { value: unknown }) {
