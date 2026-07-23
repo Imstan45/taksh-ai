@@ -70,7 +70,11 @@ export function ProfileEditor({ user, initial }: { user: { name: string; email: 
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#08090e]/85 px-5 py-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <Link className="btn-ghost -ml-3 gap-2" href="/dashboard"><ArrowLeft className="size-4" /> Dashboard</Link>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} Save profile</button>
+          <div className="flex items-center gap-2">
+            <Link className="btn-ghost border border-white/10" href="/student/courses"><BookOpen className="size-4" /> My courses</Link>
+            <Link className="btn-ghost border border-white/10" href="/continue-learning"><BookOpen className="size-4" /> Continue learning</Link>
+            <button className="btn-primary" onClick={save} disabled={saving}>{saving ? <LoaderCircle className="size-4 animate-spin" /> : <Save className="size-4" />} Save profile</button>
+          </div>
         </div>
       </header>
       <div className="mx-auto grid max-w-6xl gap-8 px-5 py-10 lg:grid-cols-[260px_1fr]">
@@ -81,6 +85,10 @@ export function ProfileEditor({ user, initial }: { user: { name: string; email: 
             <div className="mt-7 flex items-center justify-between text-sm"><span className="text-zinc-400">Profile strength</span><strong>{completion}%</strong></div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${completion}%` }} /></div>
             <p className="mt-4 text-xs leading-5 text-zinc-500">Complete your profile for sharper recommendations and interview feedback.</p>
+            <div className="mt-5 grid gap-2">
+              <Link className="btn-primary w-full" href="/continue-learning"><BookOpen className="size-4" /> Continue learning</Link>
+              <Link className="btn-ghost w-full border border-white/10" href="/student/courses">View my courses</Link>
+            </div>
           </div>
         </aside>
         <div className="space-y-6">
