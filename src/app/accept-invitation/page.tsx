@@ -12,10 +12,14 @@ function InvitationAcceptance() {
   const [destination, setDestination] = useState<string>();
   useEffect(() => {
     void (async () => {
+      if (!invitationId || !invitationToken) {
+        setMessage("The invitation link is incomplete or expired.");
+        return;
+      }
       const { data } = await createSupabaseBrowserClient().auth.getSession();
       const token = data.session?.access_token;
-      if (!token || !invitationId || !invitationToken) {
-        setMessage("The invitation link is incomplete or expired.");
+      if (!token) {
+        setMessage("Sign in with the invited email, then reopen this invitation link.");
         return;
       }
       const response = await fetch("/api/invitations/accept", {

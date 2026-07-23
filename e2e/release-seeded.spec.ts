@@ -1,0 +1,8 @@
+import{expect,test}from"@playwright/test";
+const required=["E2E_SUPER_ADMIN_EMAIL","E2E_SUPER_ADMIN_PASSWORD","E2E_COLLEGE_ADMIN_EMAIL","E2E_COLLEGE_ADMIN_PASSWORD","E2E_FACULTY_EMAIL","E2E_FACULTY_PASSWORD","E2E_STUDENT_EMAIL","E2E_STUDENT_PASSWORD"] as const;
+test.skip(required.some(key=>!process.env[key]),"Seeded release accounts are required for credentialed role flows.");
+async function login(page:import("@playwright/test").Page,path:string,email:string,password:string){await page.goto(path);await page.getByLabel(/email/i).fill(email);await page.getByLabel(/password/i).fill(password);await page.getByRole("button",{name:/sign in|enter/i}).click()}
+test("Super Admin release path",async({page})=>{await login(page,"/super-admin/login",process.env.E2E_SUPER_ADMIN_EMAIL!,process.env.E2E_SUPER_ADMIN_PASSWORD!);await expect(page).toHaveURL(/super-admin/);await expect(page.getByText(/Institutions/i)).toBeVisible()});
+test("College Admin release path",async({page})=>{await login(page,"/admin/login",process.env.E2E_COLLEGE_ADMIN_EMAIL!,process.env.E2E_COLLEGE_ADMIN_PASSWORD!);await expect(page).toHaveURL(/admin/);await page.goto("/admin/students");await expect(page.getByText(/Bulk action/i)).toBeVisible()});
+test("Faculty release path",async({page})=>{await login(page,"/admin/login",process.env.E2E_FACULTY_EMAIL!,process.env.E2E_FACULTY_PASSWORD!);await page.goto("/admin/faculty/learners");await expect(page.getByText(/Search learner/i)).toBeVisible()});
+test("Student release path",async({page})=>{await login(page,"/login",process.env.E2E_STUDENT_EMAIL!,process.env.E2E_STUDENT_PASSWORD!);await page.goto("/student/assessments");await expect(page.getByText(/Assigned assessments/i)).toBeVisible()});

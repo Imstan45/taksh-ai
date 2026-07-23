@@ -1,0 +1,4 @@
+import{expect,test}from"@playwright/test";
+test("role portals and recovery routes render",async({page})=>{for(const path of["/login","/admin/login","/super-admin/login","/forgot-password"]){await page.goto(path);await expect(page.locator("body")).toContainText(/Taksh|password/i)}});
+test("invalid invitation has a safe error state",async({page})=>{await page.goto("/accept-invitation");await expect(page.getByText(/incomplete or expired/i)).toBeVisible()});
+test("health endpoints never expose secret values",async({request})=>{for(const path of["/api/health","/api/ready"]){const response=await request.get(path);expect([200,503]).toContain(response.status());const body=await response.text();expect(body).not.toContain("service-role");expect(body).not.toContain("placeholder-content-factory-secret")}});
