@@ -2,6 +2,7 @@
 
 Apply the migrations exactly in filename order:
 
+0. `202607240000_legacy_compatibility.sql`
 1. `202607240001_production_baseline.sql`
 2. `202607240002_tenant_security.sql`
 3. `202607240003_operational_integrity.sql`
