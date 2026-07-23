@@ -10,11 +10,13 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/continue-learning", label: "Continue learning" },
     { href: "/learning-style", label: "Learning style" },
     { href: "/assessment", label: "Assessment" },
+    { href: "/student/assessments", label: "Assigned assessments" },
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
     { href: "/admin/faculty/learners", label: "Learners" },
     { href: "/admin/faculty/content", label: "Teaching content" },
+    { href: "/admin/faculty/assessments", label: "Assessments" },
   ],
   COLLEGE_ADMIN: [
     { href: "/admin", label: "College administration" },
