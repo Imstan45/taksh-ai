@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { mainEnvironment } from "@/lib/env";
+import { invitationInputSchema } from "@/lib/invitations";
+import { createToken, hashToken } from "@/lib/security/tokens";
 
 async function requireSuperAdmin() {
   const session = await auth();
@@ -178,4 +182,93 @@ export async function revokeStudentCourse(formData: FormData) {
       ${JSON.stringify({ course: assignments[0].course })}::jsonb)
   `;
   revalidatePath("/super-admin/courses");
+}
+
+export async function inviteUser(formData: FormData) {
+  const session = await requireSuperAdmin();
+  const { email, role, institutionId } = invitationInputSchema.parse({
+    email: formData.get("email"), role: formData.get("role"), institutionId: formData.get("institutionId"),
+  });
+  const pending = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM public.invitations WHERE lower(email) = ${email}
+      AND role = ${role}::public.app_role AND status = 'pending' AND expires_at > now()
+  `;
+  if (pending.length) throw new Error("A pending invitation already exists for this email and role.");
+  const invitationId = crypto.randomUUID();
+  const rawToken = createToken();
+  const redirectTo = `${mainEnvironment().NEXT_PUBLIC_APP_URL}/accept-invitation?invitation=${invitationId}&invitation_token=${encodeURIComponent(rawToken)}`;
+  const { data, error } = await createSupabaseAdminClient().auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: { invited_by: session.user.id, invitation_id: invitationId },
+  });
+  if (error || !data.user) throw new Error(error?.message ?? "Invitation could not be sent.");
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO public.invitations (
+        id, email, role, institution_id, token_hash, invited_by, expires_at
+      ) VALUES (
+        ${invitationId}::uuid, ${email}, ${role}::public.app_role, ${institutionId}::uuid,
+        ${hashToken(rawToken)}, ${session.user.id}::uuid, now() + interval '7 days'
+      )
+    `;
+    await tx.$executeRaw`
+      INSERT INTO public.user_roles (user_id, role, institution_id, account_status)
+      VALUES (${data.user.id}::uuid, ${role}::public.app_role, ${institutionId}::uuid, 'invited')
+      ON CONFLICT (user_id) DO UPDATE SET role = excluded.role,
+        institution_id = excluded.institution_id, account_status = 'invited',
+        authorization_version = user_roles.authorization_version + 1, updated_at = now()
+    `;
+    await tx.$executeRaw`
+      INSERT INTO public.audit_logs (actor_id, institution_id, action, target_type, target_id, new_values)
+      VALUES (${session.user.id}::uuid, ${institutionId}::uuid, 'invitation.sent', 'invitation', ${invitationId},
+        ${JSON.stringify({ email, role })}::jsonb)
+    `;
+  });
+  revalidatePath("/super-admin/users");
+}
+
+export async function revokeInvitation(formData: FormData) {
+  const session = await requireSuperAdmin();
+  const invitationId = String(formData.get("invitationId") ?? "");
+  const changed = await prisma.$queryRaw<Array<{ institution_id: string | null; email: string }>>`
+    UPDATE public.invitations SET status = 'revoked', updated_at = now()
+    WHERE id = ${invitationId}::uuid AND status = 'pending'
+    RETURNING institution_id, email
+  `;
+  if (!changed[0]) throw new Error("Only pending invitations can be revoked.");
+  await prisma.$executeRaw`
+    INSERT INTO public.audit_logs (actor_id, institution_id, action, target_type, target_id, new_values)
+    VALUES (${session.user.id}::uuid, ${changed[0].institution_id}::uuid, 'invitation.revoked',
+      'invitation', ${invitationId}, ${JSON.stringify({ email: changed[0].email })}::jsonb)
+  `;
+  revalidatePath("/super-admin/users");
+}
+
+export async function resendInvitation(formData: FormData) {
+  const session = await requireSuperAdmin();
+  const invitationId = String(formData.get("invitationId") ?? "");
+  const rows = await prisma.$queryRaw<Array<{ email: string; institution_id: string }>>`
+    SELECT email, institution_id FROM public.invitations
+    WHERE id = ${invitationId}::uuid AND status IN ('pending', 'expired')
+  `;
+  const invitation = rows[0];
+  if (!invitation) throw new Error("This invitation cannot be resent.");
+  const rawToken = createToken();
+  const redirectTo = `${mainEnvironment().NEXT_PUBLIC_APP_URL}/accept-invitation?invitation=${invitationId}&invitation_token=${encodeURIComponent(rawToken)}`;
+  const { error } = await createSupabaseAdminClient().auth.admin.inviteUserByEmail(invitation.email, {
+    redirectTo, data: { invited_by: session.user.id, invitation_id: invitationId },
+  });
+  if (error) throw new Error(error.message);
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      UPDATE public.invitations SET token_hash = ${hashToken(rawToken)}, status = 'pending',
+        expires_at = now() + interval '7 days', accepted_by = null, accepted_at = null, updated_at = now()
+      WHERE id = ${invitationId}::uuid
+    `;
+    await tx.$executeRaw`
+      INSERT INTO public.audit_logs (actor_id, institution_id, action, target_type, target_id)
+      VALUES (${session.user.id}::uuid, ${invitation.institution_id}::uuid, 'invitation.resent', 'invitation', ${invitationId})
+    `;
+  });
+  revalidatePath("/super-admin/users");
 }
