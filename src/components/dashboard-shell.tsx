@@ -17,6 +17,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/faculty/learners", label: "Learners" },
     { href: "/admin/faculty/content", label: "Teaching content" },
     { href: "/admin/faculty/assessments", label: "Assessments" },
+    { href: "/admin/faculty/reports", label: "Reports" },
   ],
   COLLEGE_ADMIN: [
     { href: "/admin", label: "College administration" },
@@ -25,6 +26,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/people", label: "People" },
     { href: "/admin/students", label: "Students" },
     { href: "/admin/courses", label: "Courses" },
+    { href: "/admin/reports", label: "Reports" },
   ],
   SUPER_ADMIN: [
     { href: "/super-admin", label: "Platform dashboard" },
