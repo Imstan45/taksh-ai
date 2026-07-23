@@ -9,6 +9,7 @@ export function DashboardShell({ name, email, role, children }: { name?: string 
         <div><p className="font-semibold">Taksh AI</p><p className="text-xs text-zinc-500">{role.replaceAll("_", " ")}</p></div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Link className="btn-ghost border border-white/10" href="/dashboard">Dashboard</Link>
+          <Link className="btn-ghost border border-white/10" href="/student/courses">My courses</Link>
           <Link className="btn-ghost border border-white/10" href="/continue-learning">Continue learning</Link>
           <Link className="btn-ghost border border-white/10" href="/assessment">Assessment</Link>
           <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>

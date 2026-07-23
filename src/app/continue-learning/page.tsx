@@ -1,113 +1,30 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { LearningStyleQuiz } from "@/components/learning-style/learning-style-quiz";
-import type { LearningStyle } from "@/lib/learning-style/quiz";
-
-const modulePlan = [
-  { title: "Quantitative Aptitude", count: 50, href: "#", note: "Percentages, ratios, profit-loss, time-work" },
-  { title: "Logical Reasoning", count: 50, href: "#", note: "Series, blood relations, syllogisms, coding-decoding" },
-  { title: "Directions", count: 50, href: "#", note: "Direction sense, maps, turns and shortest path" },
-  { title: "English", count: 50, href: "#", note: "Grammar, vocabulary, sentence correction" },
-  { title: "Reading Comprehension", count: 50, href: "#", note: "Inference, tone, assumption and conclusion" },
-];
-
-type Row = {
-  learning_style: LearningStyle | null;
-  profile_json: {
-    profiling?: {
-      readinessScore?: number;
-      level?: string;
-      weakAreas?: string[];
-      strongAreas?: string[];
-      categoryScores?: Array<{ category: string; score: number; level: string }>;
-    };
-  } | null;
-};
-
-const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+import { getGamification, getStudentLearningOverview } from "@/lib/learning/service";
+import { Award, BookOpen, Flame, Trophy } from "lucide-react";
 
 export default async function ContinueLearningPage() {
   const session = await auth();
   if (!session?.user) redirect("/login?callbackUrl=/continue-learning");
-
-  const rows = await prisma.$queryRaw<Row[]>`
-    SELECT learning_style, profile_json
-    FROM public.student_profiles
-    WHERE student_id = ${session.user.id}::uuid
-    ORDER BY created_at DESC NULLS LAST
-    LIMIT 1
-  `;
-
-  const profiling = rows[0]?.profile_json?.profiling;
-  const learningStyle = rows[0]?.learning_style ?? null;
-  if (!profiling) redirect("/profiling");
+  const [courses, game] = await Promise.all([
+    getStudentLearningOverview(session.user.id),
+    getGamification(session.user.id),
+  ]);
+  const resume = courses.find((course) => course.lastSlug) ?? courses[0];
 
   return (
     <DashboardShell {...session.user}>
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="glass-card h-fit">
-          <p className="eyebrow">Profile saved</p>
-          <h2 className="mt-5 text-4xl font-semibold">{profiling.readinessScore ?? 0}%</h2>
-          <p className="mt-2 text-sm text-zinc-400">Placement readiness · {label(profiling.level ?? "beginner")}</p>
-
-          <div className="mt-6 space-y-3">
-            {profiling.categoryScores?.map((item) => (
-              <div key={item.category}>
-                <div className="mb-1 flex justify-between text-xs"><span>{label(item.category)}</span><span>{item.score}%</span></div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-violet-500" style={{ width: `${item.score}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        </aside>
-
-        <section>
-          <div className="glass-card">
-            <h1 className="text-2xl font-semibold">Continue learning</h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Your static profile test is complete. Next, save your learning style so practice modules can adapt to you.
-            </p>
-          </div>
-
-          <div className="mt-6">
-            <LearningStyleQuiz initialLearningStyle={learningStyle} />
-          </div>
-
-          {learningStyle ? (
-            <>
-              <div className="glass-card mt-6 border border-emerald-400/20 bg-emerald-400/5">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="eyebrow">Next step</p>
-                    <h2 className="mt-3 text-2xl font-semibold">Take aptitude assessment</h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                      Answer 30 random aptitude questions from the question bank in 30 minutes, then review your score with explanations.
-                    </p>
-                  </div>
-                  <Link className="btn-primary shrink-0" href="/assessment">Start assessment</Link>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {modulePlan.map((module) => (
-                  <div key={module.title} className="glass-card">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-medium">{module.title}</h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">{module.note}</p>
-                      </div>
-                      <span className="rounded-full bg-violet-500/15 px-3 py-1 text-xs text-violet-200">{module.count} Qs</span>
-                    </div>
-                    <Link href={module.href} className="btn-ghost mt-5 border border-white/10">Start module</Link>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : null}
-        </section>
+      <div className="student-page-heading"><div><p className="eyebrow">Your learning journey</p><h2>Continue learning</h2><p>Resume from the exact lesson section where you stopped.</p></div><Link className="btn-ghost border border-white/10" href="/student/courses">View all courses</Link></div>
+      <div className="game-stats">
+        <div><Trophy /><span><b>Level {game.level}</b><small>{game.xp} total XP</small></span></div>
+        <div><Flame /><span><b>{game.streak} day streak</b><small>Learn today to continue it</small></span></div>
+        <div><Award /><span><b>{game.completed} lessons</b><small>Completed</small></span></div>
       </div>
+      {resume ? <section className="continue-hero"><div><p className="eyebrow">Up next</p><h3>{resume.lastSubtopic ?? resume.course}</h3><p>{resume.course} · {resume.completedCount} of {resume.lessonCount} lessons completed</p><div className="course-progress"><span style={{ width: `${resume.progress}%` }} /></div></div><Link className="btn-primary" href={resume.lastSlug ? `/student/learn/${resume.lastSlug}` : `/student/courses/${resume.slug}`}><BookOpen className="size-4" />{resume.progress ? "Resume lesson" : "Start course"}</Link></section> :
+      <div className="learning-empty"><BookOpen /><h3>You do not have an assigned course yet.</h3><p>Your learning path will appear here after your course is assigned.</p></div>}
+      {courses.length > 1 && <div className="course-grid mt-6">{courses.filter((course) => course.course !== resume?.course).map((course) => <article className="course-card" key={course.course}><h3>{course.course}</h3><p>{course.completedCount} of {course.lessonCount} lessons completed</p><div className="course-progress"><span style={{ width: `${course.progress}%` }} /></div><div className="course-card-footer"><b>{course.progress}%</b><Link href={`/student/courses/${course.slug}`}>Open</Link></div></article>)}</div>}
     </DashboardShell>
   );
 }

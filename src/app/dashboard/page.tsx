@@ -3,6 +3,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { getGamification, getStudentLearningOverview } from "@/lib/learning/service";
+import { BookOpen, Flame, Trophy } from "lucide-react";
 
 type Row = {
   profile_json: {
@@ -31,6 +33,11 @@ export default async function Page() {
   `;
 
   const profiling = rows[0]?.profile_json?.profiling;
+  const [courses, game] = await Promise.all([
+    getStudentLearningOverview(session.user.id).catch(() => []),
+    getGamification(session.user.id).catch(() => ({ xp: 0, level: 1, streak: 0, completed: 0 })),
+  ]);
+  const resume = courses.find((course) => course.lastSlug) ?? courses[0];
 
   return (
     <DashboardShell {...session.user}>
@@ -61,11 +68,15 @@ export default async function Page() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link className="btn-primary" href="/continue-learning">Continue learning</Link>
+              <Link className="btn-primary" href="/student/courses">Open learning path</Link>
             </div>
           </section>
 
           <aside className="glass-card h-fit">
+            <div className="mb-6 grid grid-cols-2 gap-3 border-b border-white/10 pb-6">
+              <div><Trophy className="size-5 text-amber-300" /><b className="mt-2 block text-lg">Level {game.level}</b><small className="text-zinc-500">{game.xp} XP</small></div>
+              <div><Flame className="size-5 text-orange-300" /><b className="mt-2 block text-lg">{game.streak} days</b><small className="text-zinc-500">Current streak</small></div>
+            </div>
             <h3 className="font-medium">Focus areas</h3>
             <p className="mt-3 text-sm text-zinc-500">Weak areas</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -76,6 +87,10 @@ export default async function Page() {
               {(profiling.strongAreas?.length ? profiling.strongAreas : ["Build more consistency"]).map((item) => <span key={item} className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">{label(item)}</span>)}
             </div>
           </aside>
+          <section className="glass-card lg:col-span-2">
+            <p className="eyebrow">Continue learning</p>
+            {resume ? <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl font-semibold">{resume.lastSubtopic ?? resume.course}</h2><p className="mt-2 text-sm text-zinc-400">{resume.course} · {resume.progress}% complete</p><div className="course-progress mt-4 max-w-xl"><span style={{ width: `${resume.progress}%` }} /></div></div><Link className="btn-primary" href={resume.lastSlug ? `/student/learn/${resume.lastSlug}` : `/student/courses/${resume.slug}`}><BookOpen className="size-4" /> Continue</Link></div> : <div className="mt-5"><h2 className="text-xl font-semibold">Your learning path is being prepared.</h2><p className="mt-2 text-sm text-zinc-400">Assigned published courses will appear here.</p></div>}
+          </section>
         </div>
       )}
     </DashboardShell>
