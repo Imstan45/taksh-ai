@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { DashboardShell } from "@/components/dashboard-shell";
 import Link from "next/link";
-import { Building2, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BookOpenCheck, Building2, ShieldCheck, Sparkles, Users } from "lucide-react";
 export default async function Page() {
   const session = await auth();
   if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
@@ -17,6 +17,7 @@ export default async function Page() {
         {[
           [Building2, "Institutions", "Manage colleges and their administrators.", "/super-admin/institutions"],
           [Users, "Platform users", "Manage roles and account access across Taksh AI.", "/super-admin/users"],
+          [BookOpenCheck, "Course operations", "Grant and assign published courses without SQL.", "/super-admin/courses"],
           [ShieldCheck, "Governance", "Review permissions, publishing and platform activity.", "/super-admin/governance"],
         ].map(([Icon, title, description, href]) => (
           <Link href={String(href)} className="glass-card transition hover:border-violet-500/40" key={String(title)}>

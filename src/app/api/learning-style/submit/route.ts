@@ -21,7 +21,7 @@ type ExistingProfile = {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || session.user.role !== "STUDENT") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

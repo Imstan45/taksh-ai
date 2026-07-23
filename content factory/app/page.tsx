@@ -158,29 +158,20 @@ export default function Home() {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, completed: 0, failed: 0, label: "" });
 
   useEffect(() => {
-    const savedGemini = localStorage.getItem("taksh_gemini_key") || "";
-    const savedUrl = localStorage.getItem("taksh_supabase_url") || "";
-    const savedAnonKey = localStorage.getItem("taksh_supabase_anon_key") || "";
-    setApiKey(savedGemini);
-    setSupabaseUrl(savedUrl);
-    setSupabaseAnonKey(savedAnonKey);
-    void loadConfiguration(savedGemini, savedUrl, savedAnonKey);
-    void loadAssets("", "all", savedUrl, savedAnonKey);
-    void loadCurriculum(initialForm.course, initialForm.module, initialForm.topic, savedUrl, savedAnonKey);
+    void loadConfiguration();
+    void loadAssets("", "all");
+    void loadCurriculum(initialForm.course, initialForm.module, initialForm.topic);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function supabaseHeaders(url = supabaseUrl, key = supabaseAnonKey): Record<string, string> {
-    return url && key ? { "x-supabase-url": url, "x-supabase-key": key } : {};
-  }
-
-  async function loadCurriculum(course = "", module = "", topic = "", url = supabaseUrl, key = supabaseAnonKey) {
+  async function loadCurriculum(course = "", module = "", topic = "") {
     setCurriculumLoading(true);
     try {
       const params = new URLSearchParams();
       if (course) params.set("course", course);
       if (module) params.set("module", module);
       if (topic) params.set("topic", topic);
-      const response = await fetch(`/api/curriculum?${params}`, { headers: supabaseHeaders(url, key) });
+      const response = await fetch(`/api/curriculum?${params}`);
       const data = await response.json();
       if (response.ok && data.configured && data.courses?.length) {
         setCurriculum({
@@ -210,14 +201,14 @@ export default function Home() {
     void loadCurriculum(form.course, form.module, topic);
   }
 
-  async function loadConfiguration(gemini = apiKey, url = supabaseUrl, key = supabaseAnonKey) {
+  async function loadConfiguration() {
     try {
       const response = await fetch("/api/config");
       if (response.ok) {
         const environment = await response.json();
         setConfig({
-          gemini: environment.gemini || Boolean(gemini),
-          supabase: environment.supabase || Boolean(url && key),
+          gemini: environment.gemini,
+          supabase: environment.supabase,
         });
       }
     } catch {
@@ -225,12 +216,12 @@ export default function Home() {
     }
   }
 
-  async function loadAssets(nextSearch = search, nextStatus = statusFilter, url = supabaseUrl, key = supabaseAnonKey) {
+  async function loadAssets(nextSearch = search, nextStatus = statusFilter) {
     try {
       const params = new URLSearchParams();
       if (nextSearch) params.set("search", nextSearch);
       if (nextStatus !== "all") params.set("status", nextStatus);
-      const response = await fetch(`/api/content?${params}`, { headers: supabaseHeaders(url, key) });
+      const response = await fetch(`/api/content?${params}`);
       const data = await response.json();
       if (response.ok) setAssets(data.assets || []);
     } catch {
@@ -248,8 +239,8 @@ export default function Home() {
   }
 
   async function generate() {
-    if (!config.gemini && !apiKey.trim()) {
-      setError("Gemini is not connected. Add GEMINI_API_KEY in Settings or use a temporary key below.");
+    if (!config.gemini) {
+      setError("Gemini is not configured on the Content Factory server.");
       return;
     }
     if (!form.course || !form.module || !form.topic || !form.subtopic) {
@@ -262,7 +253,7 @@ export default function Home() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, model, input: form }),
+        body: JSON.stringify({ model, input: form }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Generation failed.");
@@ -272,7 +263,7 @@ export default function Home() {
       if (config.supabase) {
         const saveResponse = await fetch("/api/content", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...supabaseHeaders() },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: data.content, status: "draft" }),
         });
         const saved = await saveResponse.json();
@@ -294,8 +285,8 @@ export default function Home() {
   }
 
   async function runCurriculumLoop() {
-    if (!config.gemini && !apiKey.trim()) {
-      setError("Gemini is not connected. Add GEMINI_API_KEY in Settings.");
+    if (!config.gemini) {
+      setError("Gemini is not configured on the Content Factory server.");
       return;
     }
     if (!config.supabase) {
@@ -306,7 +297,7 @@ export default function Home() {
     setError("");
     setNotice("");
     try {
-      const curriculumResponse = await fetch("/api/curriculum?all=true", { headers: supabaseHeaders() });
+      const curriculumResponse = await fetch("/api/curriculum?all=true");
       const curriculumData = await curriculumResponse.json();
       if (!curriculumResponse.ok) throw new Error(curriculumData.error || "Could not load the curriculum.");
       const rows = (curriculumData.rows || []) as Array<{ course: string; module: string; topic: string; subtopic: string }>;
@@ -330,13 +321,13 @@ export default function Home() {
           const generationResponse = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ apiKey, model, input: { ...form, ...row } }),
+            body: JSON.stringify({ model, input: { ...form, ...row } }),
           });
           const generated = await generationResponse.json();
           if (!generationResponse.ok) throw new Error(generated.error || "Generation failed.");
           const saveResponse = await fetch("/api/content", {
             method: "POST",
-            headers: { "Content-Type": "application/json", ...supabaseHeaders() },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content: generated.content, status: "draft" }),
           });
           const saved = await saveResponse.json();
@@ -368,6 +359,9 @@ export default function Home() {
   }
 
   function openAsset(asset: AssetRecord) {
+    const identity = asset.content.identity && typeof asset.content.identity === "object"
+      ? asset.content.identity as Record<string, unknown>
+      : {};
     setSelectedAsset(asset);
     setResult(asset.content);
     setJsonDraft(JSON.stringify(asset.content, null, 2));
@@ -378,9 +372,9 @@ export default function Home() {
       topic: asset.topic,
       subtopic: asset.subtopic,
       difficulty: asset.difficulty,
-      targetAudience: String((asset.content.identity as any)?.target_audience || current.targetAudience),
-      explanationDepth: String((asset.content.identity as any)?.explanation_depth || current.explanationDepth),
-      examContext: String((asset.content.identity as any)?.exam_context || current.examContext),
+      targetAudience: String(identity.target_audience || current.targetAudience),
+      explanationDepth: String(identity.explanation_depth || current.explanationDepth),
+      examContext: String(identity.exam_context || current.examContext),
     }));
     setScreen("create");
     setNotice(`Opened “${asset.title}” from the library.`);
@@ -405,7 +399,7 @@ export default function Home() {
       }
       const response = await fetch(`/api/content/${selectedAsset.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...supabaseHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content,
           status: status || selectedAsset.status,
@@ -434,7 +428,6 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey,
           model,
           selectedSection: activeSection,
           regenerationInstruction,
@@ -467,34 +460,17 @@ export default function Home() {
   }
 
   async function saveConnections() {
-    const cleanUrl = supabaseUrl.trim().replace(/\/$/, "");
-    const cleanAnonKey = supabaseAnonKey.trim();
-    const cleanGemini = apiKey.trim();
-    setSupabaseUrl(cleanUrl);
-    setSupabaseAnonKey(cleanAnonKey);
-    setApiKey(cleanGemini);
-    localStorage.setItem("taksh_gemini_key", cleanGemini);
-    localStorage.setItem("taksh_supabase_url", cleanUrl);
-    localStorage.setItem("taksh_supabase_anon_key", cleanAnonKey);
-    setConfig({ gemini: Boolean(cleanGemini), supabase: Boolean(cleanUrl && cleanAnonKey) });
+    await loadConfiguration();
     setNotice("Connections saved in this browser. Checking Supabase curriculum…");
     await Promise.all([
-      loadAssets("", "all", cleanUrl, cleanAnonKey),
-      loadCurriculum(initialForm.course, initialForm.module, initialForm.topic, cleanUrl, cleanAnonKey),
+      loadAssets("", "all"),
+      loadCurriculum(initialForm.course, initialForm.module, initialForm.topic),
     ]);
     setScreen("create");
   }
 
   function clearConnections() {
-    localStorage.removeItem("taksh_gemini_key");
-    localStorage.removeItem("taksh_supabase_url");
-    localStorage.removeItem("taksh_supabase_anon_key");
-    setApiKey("");
-    setSupabaseUrl("");
-    setSupabaseAnonKey("");
-    setConfig({ gemini: false, supabase: false });
-    setAssets([]);
-    setNotice("Saved browser connections removed.");
+    setNotice("Connections are managed through secure server environment variables.");
   }
 
   const selectedContent = result?.[activeSection];
@@ -680,9 +656,11 @@ export default function Home() {
               )}
               {selectedAsset && <div className="review-actions">
                 <button onClick={() => saveAsset()} disabled={busy}>Save new version</button>
-                <button onClick={() => saveAsset("in_review")} disabled={busy}>Send for review</button>
-                <button onClick={() => saveAsset("approved")} disabled={busy}>Approve</button>
-                <button className="publish-action" onClick={() => saveAsset("published")} disabled={busy}>Publish content</button>
+                {selectedAsset.status === "draft" && <button onClick={() => saveAsset("in_review")} disabled={busy}>Send for review</button>}
+                {selectedAsset.status === "in_review" && <button onClick={() => saveAsset("draft")} disabled={busy}>Reject to draft</button>}
+                {selectedAsset.status === "in_review" && <button onClick={() => saveAsset("approved")} disabled={busy}>Approve</button>}
+                {selectedAsset.status === "approved" && <button className="publish-action" onClick={() => saveAsset("published")} disabled={busy}>Publish content</button>}
+                {selectedAsset.status === "published" && <button onClick={() => saveAsset("archived")} disabled={busy}>Archive</button>}
               </div>}
             </div>
           )}

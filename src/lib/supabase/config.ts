@@ -1,6 +1,6 @@
+import { mainEnvironment } from "@/lib/env";
+
 export function supabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) throw new Error("Supabase API is not configured");
-  return { url, anonKey };
+  const env = mainEnvironment();
+  return { url: env.NEXT_PUBLIC_SUPABASE_URL, anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY };
 }

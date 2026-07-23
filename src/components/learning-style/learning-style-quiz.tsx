@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/purity -- timestamps are captured only for user-event timing */
 
 import { useMemo, useRef, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";

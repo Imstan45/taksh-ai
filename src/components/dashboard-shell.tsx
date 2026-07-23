@@ -1,4 +1,4 @@
-import { BookOpen, Building2, GraduationCap, LogOut, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BookOpen, Building2, GraduationCap, LogOut, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "@/auth";
 import type { UserRole } from "@/types/roles";
@@ -8,6 +8,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/student/courses", label: "My courses" },
     { href: "/continue-learning", label: "Continue learning" },
+    { href: "/learning-style", label: "Learning style" },
     { href: "/assessment", label: "Assessment" },
   ],
   FACULTY: [

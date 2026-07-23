@@ -1,4 +1,5 @@
 import { credentialsFromRequest, isSupabaseConfigured, supabaseRequest } from "../../../src/lib/supabase-rest";
+import { requireFactorySession } from "../../../src/lib/factory-auth";
 
 export const runtime = "edge";
 
@@ -10,6 +11,7 @@ type CurriculumRow = {
 };
 
 export async function GET(request: Request) {
+  if (!await requireFactorySession(request)) return Response.json({ error: "Forbidden" }, { status: 403 });
   const credentials = credentialsFromRequest(request);
   if (!isSupabaseConfigured(credentials)) {
     return Response.json({ configured: false, courses: [], modules: [], topics: [], subtopics: [] });

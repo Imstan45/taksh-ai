@@ -1,9 +1,11 @@
 import { credentialsFromRequest, isSupabaseConfigured, supabaseRequest } from "../../../src/lib/supabase-rest";
 import { takshContentSchema } from "../../../src/lib/schemas/taksh-content-schema";
+import { requireFactorySession } from "../../../src/lib/factory-auth";
 
 export const runtime = "edge";
 
 export async function GET(request: Request) {
+  if (!await requireFactorySession(request)) return Response.json({ error: "Forbidden" }, { status: 403 });
   const credentials = credentialsFromRequest(request);
   if (!isSupabaseConfigured(credentials)) return Response.json({ assets: [], configured: false });
   try {
@@ -25,10 +27,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await requireFactorySession(request);
+  if (!session) return Response.json({ error: "Forbidden" }, { status: 403 });
   const credentials = credentialsFromRequest(request);
   if (!isSupabaseConfigured(credentials)) return Response.json({ error: "Supabase is not configured." }, { status: 503 });
   try {
-    const body = await request.json() as { content?: Record<string, any>; status?: string };
+    const body = await request.json() as { content?: Record<string, unknown>; status?: string };
     const validation = takshContentSchema.safeParse(body.content);
     if (!validation.success) return Response.json({ error: "The teaching asset does not match the canonical schema." }, { status: 422 });
     const content = validation.data;
@@ -41,8 +45,9 @@ export async function POST(request: Request) {
       title: identity.title || identity.subtopic,
       slug: identity.slug,
       difficulty: identity.difficulty,
-      status: body.status || "draft",
+      status: "draft",
       content,
+      created_by: session.sub,
       updated_at: new Date().toISOString(),
     };
     const records = await supabaseRequest<Array<Record<string, unknown>>>("taksh_content_assets", {
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
           change_type: "generated",
           change_note: "Initial Gemini generation",
           content,
+          created_by: session.sub,
         }),
       }, credentials);
     }

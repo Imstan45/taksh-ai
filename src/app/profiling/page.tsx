@@ -71,7 +71,7 @@ export default function ProfilingPage() {
       return;
     }
 
-    router.push("/continue-learning");
+    router.push("/learning-style");
     router.refresh();
   }
 

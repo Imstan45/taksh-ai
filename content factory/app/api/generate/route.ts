@@ -4,19 +4,21 @@ import {
   type TakshContentPromptInput,
 } from "../../../src/lib/prompts/taksh-content-master-prompt";
 import { takshContentSchema } from "../../../src/lib/schemas/taksh-content-schema";
+import { factoryEnvironment } from "../../../src/lib/env";
+import { requireFactorySession } from "../../../src/lib/factory-auth";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
+  if (!await requireFactorySession(request)) return Response.json({ error: "Forbidden" }, { status: 403 });
   try {
     const body = (await request.json()) as {
-      apiKey?: string;
       model?: string;
       input?: TakshContentPromptInput;
     };
 
-    const apiKey = process.env.GEMINI_API_KEY || body.apiKey;
-    if (!apiKey || !body.input) {
+    const apiKey = factoryEnvironment().GEMINI_API_KEY;
+    if (!body.input) {
       return Response.json({ error: "Gemini is not configured. Add GEMINI_API_KEY to the app environment." }, { status: 400 });
     }
 

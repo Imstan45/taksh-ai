@@ -15,35 +15,35 @@ export interface ContentAssetRecord {
   updated_at: string;
 }
 
-export type SupabaseCredentials = { url?: string | null; key?: string | null };
+export type SupabaseCredentials = Record<string, never>;
 
-export function credentialsFromRequest(request: Request): SupabaseCredentials {
-  return {
-    url: request.headers.get("x-supabase-url"),
-    key: request.headers.get("x-supabase-key"),
-  };
+export function credentialsFromRequest(_request: Request): SupabaseCredentials {
+  void _request;
+  return {};
 }
 
-function config(credentials?: SupabaseCredentials) {
-  const url = (credentials?.url || process.env.NEXT_PUBLIC_SUPABASE_URL)?.replace(/\/$/, "");
-  const key = credentials?.key || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase is not configured.");
-  return { url, key };
+function config() {
+  const env = factoryEnvironment();
+  return { url: env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, ""), key: env.SUPABASE_SERVICE_ROLE_KEY };
 }
 
-export function isSupabaseConfigured(credentials?: SupabaseCredentials) {
-  return Boolean(
-    (credentials?.url && credentials?.key) ||
-    (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-  );
+export function isSupabaseConfigured(_credentials?: SupabaseCredentials) {
+  void _credentials;
+  try {
+    factoryEnvironment();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function supabaseRequest<T>(
   path: string,
   init: RequestInit = {},
-  credentials?: SupabaseCredentials,
+  _credentials?: SupabaseCredentials,
 ): Promise<T> {
-  const { url, key } = config(credentials);
+  void _credentials;
+  const { url, key } = config();
   const response = await fetch(`${url}/rest/v1/${path}`, {
     ...init,
     headers: {
@@ -63,3 +63,4 @@ export async function supabaseRequest<T>(
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
+import { factoryEnvironment } from "./env";

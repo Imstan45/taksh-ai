@@ -18,7 +18,7 @@ export default async function ContentFactoryPage() {
           Generate curriculum in sequence, review Gemini-created teaching assets, and publish approved lessons to student learning profiles.
         </p>
         {contentFactoryUrl ? (
-          <Link className="btn-primary mt-7 inline-flex" href={contentFactoryUrl} target="_blank" rel="noreferrer">
+          <Link className="btn-primary mt-7 inline-flex" href="/api/content-factory/launch" target="_blank" rel="noreferrer">
             Open Content Factory <ExternalLink className="size-4" />
           </Link>
         ) : (

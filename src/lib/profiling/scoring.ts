@@ -31,7 +31,6 @@ function levelFromScore(score: number) {
 }
 
 export function evaluateProfiling(answers: ProfilingAnswer[]) {
-  const byQuestion = new Map(PROFILING_QUESTIONS.map((q) => [q.id, q]));
   const answerMap = new Map(answers.map((answer) => [answer.questionId, answer]));
 
   const detailedAnswers = PROFILING_QUESTIONS.map((question) => {

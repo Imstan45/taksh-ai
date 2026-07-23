@@ -2,14 +2,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { updateUserAccess } from "../actions";
+import { updateUserAccess, updateUserStatus } from "../actions";
 
 export default async function UsersPage() {
   const session = await auth();
   if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
   const [users, institutions] = await Promise.all([
-    prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null }>>`
-      SELECT u.id, u.email, r.role::text, r.institution_id
+    prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; account_status: string }>>`
+      SELECT u.id, u.email, r.role::text, r.institution_id, r.account_status
       FROM auth.users u JOIN public.user_roles r ON r.user_id = u.id
       ORDER BY u.email
     `,
@@ -27,6 +27,7 @@ export default async function UsersPage() {
               <select className="field" name="role" defaultValue={user.role}>{["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].map((role) => <option value={role} key={role}>{role.replaceAll("_", " ")}</option>)}</select>
               <select className="field" name="institutionId" defaultValue={user.institution_id ?? ""}><option value="">No institution</option>{institutions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>
               <button className="btn-primary" type="submit">Update</button>
+              <div className="md:col-span-4 flex justify-end"><button formAction={updateUserStatus} name="status" value={user.account_status === "active" ? "suspended" : "active"} className="btn-ghost border border-white/10" type="submit">{user.account_status === "active" ? "Suspend account" : "Reactivate account"}</button></div>
             </form>
           ))}
         </div>

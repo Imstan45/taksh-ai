@@ -37,7 +37,6 @@ function formatTime(totalSeconds: number) {
 export function AptitudeAssessment() {
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, OptionKey>>({});
-  const [durationSeconds, setDurationSeconds] = useState(30 * 60);
   const [remainingSeconds, setRemainingSeconds] = useState(30 * 60);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -78,7 +77,6 @@ export function AptitudeAssessment() {
       const data = payload as AssessmentPayload;
       setQuestions(data.questions);
       const seconds = data.durationMinutes * 60;
-      setDurationSeconds(seconds);
       setRemainingSeconds(seconds);
       if (data.questions.length < 30) {
         setError(`Only ${data.questions.length} aptitude questions are available right now. The assessment can still be attempted.`);

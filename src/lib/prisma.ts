@@ -1,11 +1,11 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { mainEnvironment } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL is not configured");
+  const connectionString = mainEnvironment().DATABASE_URL;
   const ssl = connectionString.includes("supabase.com") ? { rejectUnauthorized: false } : undefined;
   return new PrismaClient({ adapter: new PrismaPg({ connectionString, ssl }) });
 }

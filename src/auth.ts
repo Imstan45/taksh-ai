@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { loginSchema } from "@/lib/auth/validation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/types/roles";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -26,15 +26,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (error || !data.user) return null;
         const { data: roleRecord, error: roleError } = await supabase
           .from("user_roles")
-          .select("role")
+          .select("role,account_status,authorization_version")
           .eq("user_id", data.user.id)
           .maybeSingle();
-        if (roleError) return null;
+        if (roleError || !roleRecord || roleRecord.account_status !== "active") return null;
 
         const storedRole = roleRecord?.role;
-        const role: UserRole = storedRole && ["FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)
-          ? storedRole
-          : "STUDENT";
+        if (!["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
+        const role = storedRole as UserRole;
         const portal = String(credentials.portal ?? "student");
         const portalAllowed =
           (portal === "student" && role === "STUDENT") ||
@@ -47,27 +46,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: String(data.user.user_metadata.full_name ?? data.user.email?.split("@")[0] ?? "Student"),
           email: data.user.email,
           role,
+          accountStatus: roleRecord.account_status,
+          authorizationVersion: roleRecord.authorization_version,
           rememberMe: parsed.data.rememberMe,
         };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.rememberMe = user.rememberMe;
+        token.accountStatus = user.accountStatus;
+        token.authorizationVersion = user.authorizationVersion;
+      } else if (token.id) {
+        const { data } = await createSupabaseAdminClient()
+          .from("user_roles")
+          .select("role,account_status,authorization_version")
+          .eq("user_id", token.id)
+          .maybeSingle();
+        if (!data || data.account_status !== "active") {
+          token.accountStatus = data?.account_status ?? "disabled";
+        } else {
+          token.role = data.role as UserRole;
+          token.accountStatus = data.account_status;
+          token.authorizationVersion = data.authorization_version;
+        }
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.id as string;
       if (token.role) session.user.role = token.role;
+      session.user.accountStatus = token.accountStatus;
+      session.user.authorizationVersion = token.authorizationVersion;
       return session;
     },
     authorized({ auth: session, request }) {
       const path = request.nextUrl.pathname;
+      if (session?.user && session.user.accountStatus !== "active") return false;
       if (path === "/super-admin/login") {
         if (session?.user.role === "SUPER_ADMIN") {
           return Response.redirect(new URL("/super-admin", request.nextUrl));
@@ -80,7 +99,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         return true;
       }
-      if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
+      if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
       if (!session?.user) {
         if (path.startsWith("/super-admin")) {
           const loginUrl = new URL("/super-admin/login", request.nextUrl);

@@ -258,4 +258,9 @@ export const PROFILING_QUESTIONS: ProfilingQuestion[] = [
   },
 ];
 
-export const SAFE_PROFILING_QUESTIONS = PROFILING_QUESTIONS.map(({ correctOption, explanation, ...question }) => question);
+export const SAFE_PROFILING_QUESTIONS = PROFILING_QUESTIONS.map((question) => {
+  const safeQuestion = { ...question } as Partial<ProfilingQuestion>;
+  delete safeQuestion.correctOption;
+  delete safeQuestion.explanation;
+  return safeQuestion;
+});

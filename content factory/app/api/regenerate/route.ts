@@ -2,20 +2,22 @@ import {
   buildTakshSectionRegenerationPrompt,
   TAKSH_SECTION_REGENERATION_SYSTEM_PROMPT,
 } from "../../../src/lib/prompts/taksh-content-master-prompt";
+import { factoryEnvironment } from "../../../src/lib/env";
+import { requireFactorySession } from "../../../src/lib/factory-auth";
 
 export const runtime = "edge";
 
 export async function POST(request: Request) {
+  if (!await requireFactorySession(request)) return Response.json({ error: "Forbidden" }, { status: 403 });
   try {
     const body = await request.json() as {
-      apiKey?: string;
       model?: string;
       selectedSection?: string;
       regenerationInstruction?: string;
       existingContentJson?: Record<string, unknown>;
     };
-    const apiKey = process.env.GEMINI_API_KEY || body.apiKey;
-    if (!apiKey || !body.selectedSection || !body.existingContentJson) {
+    const apiKey = factoryEnvironment().GEMINI_API_KEY;
+    if (!body.selectedSection || !body.existingContentJson) {
       return Response.json({ error: "Gemini configuration, section and existing content are required." }, { status: 400 });
     }
     const allowedModels = new Set(["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]);
@@ -33,9 +35,12 @@ export async function POST(request: Request) {
         generationConfig: { responseMimeType: "application/json", maxOutputTokens: 32768 },
       }),
     });
-    const payload = await response.json() as any;
+    const payload = await response.json() as {
+      error?: { message?: string };
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
     if (!response.ok) return Response.json({ error: payload.error?.message || "Gemini rejected the request." }, { status: response.status });
-    const text = payload.candidates?.[0]?.content?.parts?.map((part: any) => part.text || "").join("") || "";
+    const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
     try {
       return Response.json({ section: JSON.parse(text) });
     } catch {
