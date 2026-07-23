@@ -1,5 +1,7 @@
 -- Taksh AI role and institution migration. Safe to run more than once.
 
+create extension if not exists pgcrypto;
+
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'app_role' and typnamespace = 'public'::regnamespace) then
@@ -31,7 +33,9 @@ alter table public.user_roles enable row level security;
 alter table public.institutions enable row level security;
 
 revoke insert, update, delete on public.user_roles from anon, authenticated;
+revoke insert, update, delete on public.institutions from anon, authenticated;
 grant select on public.user_roles to authenticated;
+grant select on public.institutions to authenticated;
 
 drop policy if exists "Users can read their own role" on public.user_roles;
 create policy "Users can read their own role"
