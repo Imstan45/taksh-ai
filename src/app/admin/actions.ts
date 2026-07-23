@@ -197,3 +197,29 @@ export async function revokeInstitutionCourse(formData: FormData) {
   if (!changed) throw new Error("Assignment not found in your institution.");
   revalidatePath("/admin/courses");
 }
+
+export async function bulkUpdateStudents(formData: FormData) {
+  const { session,institutionId }=await requireCollegeAdmin();
+  const userIds=formData.getAll("userId").map(String),operation=clean(formData.get("operation"));
+  const value=clean(formData.get("value"));
+  if(!userIds.length)throw new Error("Select at least one Student.");
+  const scoped=await prisma.$queryRaw<Array<{user_id:string}>>`SELECT user_id FROM public.user_roles WHERE user_id=ANY(${userIds}::uuid[]) AND institution_id=${institutionId}::uuid AND role='STUDENT'`;
+  if(scoped.length!==new Set(userIds).size)throw new Error("One or more Students are outside your institution.");
+  if(["suspend","reactivate"].includes(operation)){
+    const status=operation==="suspend"?"suspended":"active";
+    await prisma.$executeRaw`UPDATE public.user_roles SET account_status=${status},authorization_version=authorization_version+1,updated_at=now() WHERE user_id=ANY(${userIds}::uuid[]) AND institution_id=${institutionId}::uuid`;
+  }else if(["department","batch"].includes(operation)){
+    if(!value)throw new Error("A target is required.");
+    const table=operation==="department"?"departments":"academic_batches";
+    const valid=await prisma.$queryRawUnsafe<Array<{id:string}>>(`SELECT id FROM public.${table} WHERE id=$1::uuid AND institution_id=$2::uuid`,value,institutionId);
+    if(!valid[0])throw new Error("Target is outside your institution.");
+    if(operation==="department")await prisma.$executeRaw`UPDATE public.user_academic_memberships SET department_id=${value}::uuid,updated_at=now() WHERE user_id=ANY(${userIds}::uuid[]) AND institution_id=${institutionId}::uuid AND membership_type='STUDENT'`;
+    else await prisma.$executeRaw`UPDATE public.user_academic_memberships SET batch_id=${value}::uuid,updated_at=now() WHERE user_id=ANY(${userIds}::uuid[]) AND institution_id=${institutionId}::uuid AND membership_type='STUDENT'`;
+  }else if(operation==="course"){
+    const grant=await prisma.$queryRaw<Array<{course:string}>>`SELECT course FROM public.institution_course_access WHERE institution_id=${institutionId}::uuid AND course=${value} AND active`;
+    if(!grant[0])throw new Error("Course is not granted to your institution.");
+    for(const userId of userIds)await prisma.$executeRaw`INSERT INTO public.student_course_assignments(student_id,institution_id,course,assigned_by,active) VALUES(${userId}::uuid,${institutionId}::uuid,${value},${session.user.id}::uuid,true) ON CONFLICT(student_id,course) DO UPDATE SET active=true,revoked_at=null,assigned_by=excluded.assigned_by`;
+  }else throw new Error("Invalid bulk operation.");
+  await prisma.$executeRaw`INSERT INTO public.audit_logs(actor_id,institution_id,action,target_type,target_id,new_values) VALUES(${session.user.id}::uuid,${institutionId}::uuid,'students.bulk_updated','student',${userIds.join(",")},${JSON.stringify({operation,value,count:userIds.length})}::jsonb)`;
+  revalidatePath("/admin/students");
+}

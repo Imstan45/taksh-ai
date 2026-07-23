@@ -2,6 +2,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { prisma } from "@/lib/prisma";
 import { requireCollegeAdmin } from "@/lib/admin-scope";
 import { inviteInstitutionUser, updateInstitutionMember } from "../actions";
+import { StudentCsvImport } from "@/components/admin/student-csv-import";
 
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ q?: string; role?: string }> }) {
   const { session, institutionId } = await requireCollegeAdmin();
@@ -22,6 +23,6 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
     <form action={inviteInstitutionUser} className="glass-card grid gap-3 md:grid-cols-[1fr_180px_auto]"><input className="field" name="email" type="email" placeholder="Email" required/><select className="field" name="role"><option value="STUDENT">Student</option><option value="FACULTY">Faculty</option></select><button className="btn-primary">Invite</button></form>
     <form className="mt-6 flex gap-3"><input className="field" name="q" placeholder="Search email" defaultValue={filters.q}/><select className="field" name="role" defaultValue={filters.role}><option value="">All roles</option><option value="STUDENT">Students</option><option value="FACULTY">Faculty</option></select><button className="btn-ghost">Search</button></form>
     <section className="glass-card mt-6"><h2 className="text-xl font-semibold">Institution people</h2><div className="mt-5 space-y-3">{people.map((person)=><form action={updateInstitutionMember} className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-[1fr_140px_1fr_1fr_auto]" key={person.user_id}><input type="hidden" name="userId" value={person.user_id}/><div><b>{person.email}</b><p className="text-xs text-zinc-500">{person.role} · {person.account_status}</p></div><select className="field" name="status" defaultValue={person.account_status}><option value="active">Active</option><option value="suspended">Suspended</option></select><select className="field" name="departmentId" defaultValue={person.department_id??""}><option value="">No department</option>{departments.map((item)=><option value={item.id} key={item.id}>{item.name}</option>)}</select><select className="field" name="batchId" defaultValue={person.batch_id??""}><option value="">No batch</option>{batches.map((item)=><option value={item.id} key={item.id}>{item.name}</option>)}</select><button className="btn-primary">Save</button></form>)}</div></section>
-    <section className="glass-card mt-6"><h2 className="text-lg font-semibold">CSV student format</h2><code className="mt-3 block text-sm text-zinc-300">first_name,last_name,email,department,batch</code><p className="mt-2 text-sm text-zinc-500">Bulk row processing is not enabled yet; use individual invitations above.</p></section>
+    <StudentCsvImport />
   </DashboardShell>;
 }

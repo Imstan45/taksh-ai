@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{parseCsv,studentCsvHeaders}from"@/lib/csv";
+describe("Student CSV",()=>{it("parses quoted commas and independent rows",()=>{expect(parseCsv('First Name,Last Name,Email,Department,Batch,Roll Number\n"Ada, A",Lovelace,ada@example.edu,CSE,A,C1')).toHaveLength(2);expect(parseCsv('"Ada, A",Lovelace')[0][0]).toBe("Ada, A")});it("defines the required canonical headers",()=>expect(studentCsvHeaders).toEqual(["first name","last name","email","department","batch","roll number"]))});

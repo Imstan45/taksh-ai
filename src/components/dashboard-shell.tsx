@@ -23,6 +23,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/departments", label: "Departments" },
     { href: "/admin/academics", label: "Academics" },
     { href: "/admin/people", label: "People" },
+    { href: "/admin/students", label: "Students" },
     { href: "/admin/courses", label: "Courses" },
   ],
   SUPER_ADMIN: [
