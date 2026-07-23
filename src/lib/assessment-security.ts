@@ -25,8 +25,10 @@ export function evaluateAnswers(keys: QuestionKey[], answers: StudentAnswer[]) {
   const results = keys.map((key) => {
     const selectedAnswer = submitted.get(key.id) ?? null;
     const correctAnswer = key.correctAnswer.trim().toUpperCase();
-    return { questionId: key.id, selectedAnswer, correctAnswer, explanation: key.explanation, correct: selectedAnswer === correctAnswer };
+    const correct = selectedAnswer === correctAnswer;
+    return { questionId: key.id, selectedAnswer, correctAnswer, explanation: key.explanation, correct, pointsAwarded: correct ? (key.points ?? 1) : 0, maxPoints: key.points ?? 1 };
   });
-  const score = results.filter((result) => result.correct).length;
-  return { score, maxScore: results.length, percentage: results.length ? Math.round(score / results.length * 10000) / 100 : 0, results };
+  const score = results.reduce((total,result)=>total+result.pointsAwarded,0);
+  const maxScore = results.reduce((total,result)=>total+result.maxPoints,0);
+  return { score, maxScore, percentage: maxScore ? Math.round(score / maxScore * 10000) / 100 : 0, results };
 }

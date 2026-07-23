@@ -30,8 +30,20 @@ export async function createAssessment(formData: FormData) {
 
 export async function setAssessmentStatus(formData:FormData){
   const {session,institutionId}=await requireFaculty(); const id=String(formData.get("id")??""),status=String(formData.get("status")??"");
-  if(!["published","closed","archived"].includes(status)) throw new Error("Invalid assessment state.");
+  if(!["draft","published","closed","archived"].includes(status)) throw new Error("Invalid assessment state.");
   const changed=await prisma.$executeRaw`UPDATE public.assessments SET status=${status},published_at=CASE WHEN ${status}='published' THEN now() ELSE published_at END,updated_at=now() WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid AND created_by=${session.user.id}::uuid`;
   if(!changed) throw new Error("Assessment not found.");
   revalidatePath("/admin/faculty/assessments");
+}
+
+export async function duplicateAssessment(formData:FormData){
+  const{session,institutionId}=await requireFaculty();const id=String(formData.get("id")??"");
+  await prisma.$transaction(async tx=>{const copies=await tx.$queryRaw<Array<{id:string}>>`INSERT INTO public.assessments(institution_id,created_by,title,description,instructions,course,module,topic,subtopic,status,duration_minutes,max_attempts,pass_percentage,available_from,available_until,randomize_questions) SELECT institution_id,${session.user.id}::uuid,title||' (copy)',description,instructions,course,module,topic,subtopic,'draft',duration_minutes,max_attempts,pass_percentage,available_from,available_until,randomize_questions FROM public.assessments WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid AND created_by=${session.user.id}::uuid RETURNING id`;if(!copies[0])throw new Error("Assessment not found.");await tx.$executeRaw`INSERT INTO public.assessment_questions(assessment_id,question_id,display_order,points) SELECT ${copies[0].id}::uuid,question_id,display_order,points FROM public.assessment_questions WHERE assessment_id=${id}::uuid`;});
+  revalidatePath("/admin/faculty/assessments");
+}
+
+export async function updateAssessmentSettings(formData:FormData){
+  const{session,institutionId}=await requireFaculty();const id=String(formData.get("id")??""),title=String(formData.get("title")??"").trim();
+  const changed=await prisma.$executeRaw`UPDATE public.assessments SET title=${title},instructions=${String(formData.get("instructions")??"")},duration_minutes=${Number(formData.get("duration")??30)},max_attempts=${Number(formData.get("maxAttempts")??1)},pass_percentage=${Number(formData.get("pass")??60)},available_from=${String(formData.get("availableFrom")??"")||null}::timestamptz,available_until=${String(formData.get("availableUntil")??"")||null}::timestamptz,randomize_questions=${formData.get("randomize")==="on"},updated_at=now() WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid AND created_by=${session.user.id}::uuid AND status='draft'`;
+  if(!changed)throw new Error("Only your draft assessments can be edited.");revalidatePath(`/admin/faculty/assessments/${id}`);
 }

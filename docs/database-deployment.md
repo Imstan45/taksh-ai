@@ -8,6 +8,7 @@ Apply the migrations exactly in filename order:
 4. `202607240004_secure_aptitude_attempts.sql`
 5. `202607240005_institutional_assessments.sql`
 6. `202607240006_student_operations.sql`
+7. `202607240007_assessment_management.sql`
 
 With Supabase CLI:
 
