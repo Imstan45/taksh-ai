@@ -15,15 +15,15 @@ export default async function Page() {
           <p className="mt-2 text-sm leading-6 text-zinc-400">Generate, review, approve and publish curriculum content.</p>
         </Link>
         {[
-          [Building2, "Institutions", "Manage colleges and their administrators."],
-          [Users, "Platform users", "Manage roles and account access across Taksh AI."],
-          [ShieldCheck, "Governance", "Review permissions, publishing and platform activity."],
-        ].map(([Icon, title, description]) => (
-          <section className="glass-card" key={String(title)}>
+          [Building2, "Institutions", "Manage colleges and their administrators.", "/super-admin/institutions"],
+          [Users, "Platform users", "Manage roles and account access across Taksh AI.", "/super-admin/users"],
+          [ShieldCheck, "Governance", "Review permissions, publishing and platform activity.", "/super-admin/governance"],
+        ].map(([Icon, title, description, href]) => (
+          <Link href={String(href)} className="glass-card transition hover:border-violet-500/40" key={String(title)}>
             <Icon className="size-6 text-violet-400" />
             <h2 className="mt-6 text-xl font-semibold">{String(title)}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">{String(description)}</p>
-          </section>
+          </Link>
         ))}
       </div>
     </DashboardShell>

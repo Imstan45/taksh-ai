@@ -169,7 +169,7 @@ export default function Home() {
     void loadCurriculum(initialForm.course, initialForm.module, initialForm.topic, savedUrl, savedAnonKey);
   }, []);
 
-  function supabaseHeaders(url = supabaseUrl, key = supabaseAnonKey) {
+  function supabaseHeaders(url = supabaseUrl, key = supabaseAnonKey): Record<string, string> {
     return url && key ? { "x-supabase-url": url, "x-supabase-key": key } : {};
   }
 
