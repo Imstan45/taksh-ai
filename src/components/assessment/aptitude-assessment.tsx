@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -16,14 +16,21 @@ type AssessmentQuestion = {
   difficulty: string;
   question: string;
   options: Record<OptionKey, string>;
-  correctAnswer: OptionKey;
-  explanation: string;
 };
 
 type AssessmentPayload = {
+  attemptTicket: string;
+  startedAt: string;
   durationMinutes: number;
   count: number;
   questions: AssessmentQuestion[];
+};
+
+type AssessmentResult = {
+  score: number;
+  maxScore: number;
+  percentage: number;
+  results: Array<{ questionId: string; selectedAnswer: string | null; correctAnswer: string; explanation: string | null; correct: boolean }>;
 };
 
 const optionKeys: OptionKey[] = ["A", "B", "C", "D"];
@@ -42,6 +49,9 @@ export function AptitudeAssessment() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attemptTicket, setAttemptTicket] = useState("");
+  const [startedAt, setStartedAt] = useState("");
+  const [result, setResult] = useState<AssessmentResult>();
 
   useEffect(() => {
     loadAssessment();
@@ -53,13 +63,15 @@ export function AptitudeAssessment() {
       setRemainingSeconds((value) => {
         if (value <= 1) {
           window.clearInterval(timer);
-          setSubmitted(true);
+          void submitAssessment();
           return 0;
         }
         return value - 1;
       });
     }, 1000);
     return () => window.clearInterval(timer);
+    // submitAssessment deliberately uses the latest render state when the interval fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, remainingSeconds, submitted]);
 
   async function loadAssessment() {
@@ -68,6 +80,7 @@ export function AptitudeAssessment() {
     setSubmitted(false);
     setAnswers({});
     setCurrentIndex(0);
+    setResult(undefined);
 
     try {
       const response = await fetch("/api/assessment/questions", { cache: "no-store" });
@@ -76,6 +89,8 @@ export function AptitudeAssessment() {
 
       const data = payload as AssessmentPayload;
       setQuestions(data.questions);
+      setAttemptTicket(data.attemptTicket);
+      setStartedAt(data.startedAt);
       const seconds = data.durationMinutes * 60;
       setRemainingSeconds(seconds);
       if (data.questions.length < 30) {
@@ -88,11 +103,26 @@ export function AptitudeAssessment() {
     }
   }
 
-  const score = useMemo(() => {
-    return questions.reduce((total, question) => {
-      return total + (answers[question.id] === question.correctAnswer ? 1 : 0);
-    }, 0);
-  }, [answers, questions]);
+  async function submitAssessment() {
+    if (submitted) return;
+    setError(null);
+    const response = await fetch("/api/assessment/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        attemptTicket,
+        startedAt,
+        answers: Object.entries(answers).map(([questionId, selectedAnswer]) => ({ questionId, selectedAnswer })),
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error ?? "Assessment could not be submitted.");
+      return;
+    }
+    setResult(payload);
+    setSubmitted(true);
+  }
 
   const answeredCount = Object.keys(answers).length;
   const current = questions[currentIndex];
@@ -176,7 +206,7 @@ export function AptitudeAssessment() {
               <button className="btn-ghost border border-white/10" type="button" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>Previous</button>
               <div className="flex gap-3">
                 <button className="btn-ghost border border-white/10" type="button" disabled={currentIndex === questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>Next</button>
-                <button className="btn-primary" type="button" onClick={() => setSubmitted(true)}>Submit assessment</button>
+                <button className="btn-primary" type="button" onClick={() => void submitAssessment()}>Submit assessment</button>
               </div>
             </div>
           </div>
@@ -186,7 +216,7 @@ export function AptitudeAssessment() {
           <div className="mt-8">
             <div className="rounded-3xl border border-violet-400/20 bg-violet-500/10 p-6">
               <p className="text-sm text-violet-200">Final score</p>
-              <h3 className="mt-2 text-5xl font-semibold">{score}/{questions.length}</h3>
+              <h3 className="mt-2 text-5xl font-semibold">{result?.score ?? 0}/{result?.maxScore ?? questions.length}</h3>
               <p className="mt-3 text-sm text-zinc-300">You answered {answeredCount} questions. Review the explanations below to understand each solution.</p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button className="btn-primary" type="button" onClick={loadAssessment}><RotateCcw className="size-4" /> Start new random assessment</button>
@@ -198,7 +228,8 @@ export function AptitudeAssessment() {
             <div className="mt-6 grid gap-4">
               {questions.map((question, index) => {
                 const selected = answers[question.id];
-                const correct = selected === question.correctAnswer;
+                const evaluated = result?.results.find((item) => item.questionId === question.id);
+                const correct = Boolean(evaluated?.correct);
                 return (
                   <article key={question.id} className="rounded-2xl border border-white/10 bg-black/20 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -211,14 +242,14 @@ export function AptitudeAssessment() {
                     <p className="mt-4 leading-7">{question.question}</p>
                     <div className="mt-4 grid gap-2">
                       {optionKeys.map((key) => (
-                        <div key={key} className={`rounded-xl border p-3 text-sm ${key === question.correctAnswer ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : selected === key ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-white/10 bg-white/[.03] text-zinc-300"}`}>
+                        <div key={key} className={`rounded-xl border p-3 text-sm ${key === evaluated?.correctAnswer ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : selected === key ? "border-red-400/30 bg-red-500/10 text-red-100" : "border-white/10 bg-white/[.03] text-zinc-300"}`}>
                           <strong>{key}.</strong> {question.options[key]}
                         </div>
                       ))}
                     </div>
-                    <p className="mt-4 text-sm text-zinc-300"><strong className="text-white">Your answer:</strong> {selected ?? "Not answered"} · <strong className="text-white">Correct answer:</strong> {question.correctAnswer}</p>
+                    <p className="mt-4 text-sm text-zinc-300"><strong className="text-white">Your answer:</strong> {selected ?? "Not answered"} · <strong className="text-white">Correct answer:</strong> {evaluated?.correctAnswer}</p>
                     <div className="mt-4 rounded-xl border border-sky-400/20 bg-sky-500/10 p-4 text-sm leading-6 text-sky-100">
-                      <strong>Explanation:</strong> {question.explanation}
+                      <strong>Explanation:</strong> {evaluated?.explanation ?? "Explanation is not available."}
                     </div>
                   </article>
                 );

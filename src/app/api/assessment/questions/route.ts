@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createAssessmentTicket } from "@/lib/assessment-security";
+import { mainEnvironment } from "@/lib/env";
 
 type QuestionRow = {
   id: string;
@@ -11,8 +13,6 @@ type QuestionRow = {
   option_b: string | null;
   option_c: string | null;
   option_d: string | null;
-  correct_answer: string | null;
-  explanation: string | null;
   time_limit: number | null;
   module: string | null;
   subject: string | null;
@@ -35,8 +35,6 @@ export async function GET() {
       qb.option_b,
       qb.option_c,
       qb.option_d,
-      qb.correct_answer,
-      qb.explanation,
       qb.time_limit,
       qt.module,
       qt.subject,
@@ -56,6 +54,8 @@ export async function GET() {
   `;
 
   return NextResponse.json({
+    attemptTicket: createAssessmentTicket(session.user.id, rows.map((row) => row.id), mainEnvironment().AUTH_SECRET, Date.now() + 30 * 60 * 1000),
+    startedAt: new Date().toISOString(),
     durationMinutes: 30,
     count: rows.length,
     questions: rows.map((row, index) => ({
@@ -73,8 +73,6 @@ export async function GET() {
         C: row.option_c ?? "",
         D: row.option_d ?? "",
       },
-      correctAnswer: String(row.correct_answer ?? "").trim().toUpperCase(),
-      explanation: row.explanation ?? "Explanation is not available yet.",
       timeLimit: row.time_limit ?? 60,
     })),
   });

@@ -5,6 +5,7 @@ Apply the migrations exactly in filename order:
 1. `202607240001_production_baseline.sql`
 2. `202607240002_tenant_security.sql`
 3. `202607240003_operational_integrity.sql`
+4. `202607240004_secure_aptitude_attempts.sql`
 
 With Supabase CLI:
 
