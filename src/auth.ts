@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { loginSchema } from "@/lib/auth/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { UserRole } from "@/types/roles";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -30,11 +31,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .maybeSingle();
         if (roleError) return null;
 
-        const role = roleRecord?.role === "COLLEGE_ADMIN" || roleRecord?.role === "SUPER_ADMIN"
-          ? roleRecord.role
+        const storedRole = roleRecord?.role;
+        const role: UserRole = storedRole && ["FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)
+          ? storedRole
           : "STUDENT";
-        const isSuperAdminPortal = credentials.portal === "super-admin";
-        if (isSuperAdminPortal !== (role === "SUPER_ADMIN")) return null;
+        const portal = String(credentials.portal ?? "student");
+        const portalAllowed =
+          (portal === "student" && role === "STUDENT") ||
+          (portal === "super-admin" && role === "SUPER_ADMIN") ||
+          (portal === "admin" && (role === "COLLEGE_ADMIN" || role === "FACULTY"));
+        if (!portalAllowed) return null;
 
         return {
           id: data.user.id,
@@ -68,6 +74,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         return true;
       }
+      if (path === "/admin/login") {
+        if (session?.user.role === "COLLEGE_ADMIN" || session?.user.role === "FACULTY") {
+          return Response.redirect(new URL("/admin", request.nextUrl));
+        }
+        return true;
+      }
       if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
       if (!session?.user) {
         if (path.startsWith("/super-admin")) {
@@ -75,11 +87,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           loginUrl.searchParams.set("callbackUrl", path);
           return Response.redirect(loginUrl);
         }
+        if (path.startsWith("/admin")) {
+          const loginUrl = new URL("/admin/login", request.nextUrl);
+          loginUrl.searchParams.set("callbackUrl", path);
+          return Response.redirect(loginUrl);
+        }
         return false;
       }
       if (path.startsWith("/super-admin")) return session.user.role === "SUPER_ADMIN";
-      if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "SUPER_ADMIN"].includes(session.user.role);
-      return true;
+      if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
+      return session.user.role === "STUDENT";
     },
   },
 });

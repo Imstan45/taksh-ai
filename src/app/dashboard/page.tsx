@@ -23,6 +23,8 @@ const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (ch
 export default async function Page() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.role === "SUPER_ADMIN") redirect("/super-admin");
+  if (session.user.role === "COLLEGE_ADMIN" || session.user.role === "FACULTY") redirect("/admin");
 
   const rows = await prisma.$queryRaw<Row[]>`
     SELECT profile_json
