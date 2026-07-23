@@ -45,6 +45,7 @@ export async function GET() {
 
   const ready = environment.valid && database && missingTables.length === 0;
   return Response.json({
+    version: environment.deploymentVersion,
     status: ready ? "ready" : "degraded",
     checks: {
       environment: environment.valid,

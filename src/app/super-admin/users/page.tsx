@@ -14,7 +14,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       FROM auth.users u JOIN public.user_roles r ON r.user_id = u.id
       ORDER BY u.email
     `,
-    prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id, name FROM public.institutions WHERE active = true ORDER BY name`,
+    prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id, name FROM public.institutions WHERE status = 'active' ORDER BY name`,
     prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; institution_name: string | null; status: string; expires_at: Date }>>`
       SELECT invitation.id, invitation.email, invitation.role::text, invitation.institution_id,
         institution.name AS institution_name,

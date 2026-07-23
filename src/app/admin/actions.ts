@@ -168,6 +168,7 @@ export async function assignInstitutionCourse(formData: FormData) {
   const course = clean(formData.get("course"));
   const studentId = clean(formData.get("studentId"));
   const batchId = clean(formData.get("batchId"));
+  const departmentId = clean(formData.get("departmentId"));
   const startsAt = clean(formData.get("startsAt"));
   const dueAt = clean(formData.get("dueAt"));
   const grant = await prisma.$queryRaw<Array<{ course: string }>>`
@@ -178,7 +179,8 @@ export async function assignInstitutionCourse(formData: FormData) {
     SELECT DISTINCT role.user_id FROM public.user_roles role
     LEFT JOIN public.user_academic_memberships membership ON membership.user_id=role.user_id AND membership.active
     WHERE role.institution_id=${institutionId}::uuid AND role.role='STUDENT' AND role.account_status='active'
-      AND ((${studentId}<>'' AND role.user_id=${studentId || null}::uuid) OR (${batchId}<>'' AND membership.batch_id=${batchId || null}::uuid))
+      AND ((${studentId}<>'' AND role.user_id=${studentId || null}::uuid) OR (${batchId}<>'' AND membership.batch_id=${batchId || null}::uuid)
+        OR (${departmentId}<>'' AND membership.department_id=${departmentId || null}::uuid))
   `;
   if (!students.length) throw new Error("No eligible students were found.");
   await prisma.$transaction(students.map((student) => prisma.$executeRaw`
@@ -196,6 +198,14 @@ export async function revokeInstitutionCourse(formData: FormData) {
   const changed = await prisma.$executeRaw`UPDATE public.student_course_assignments SET active=false,revoked_at=now() WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid`;
   if (!changed) throw new Error("Assignment not found in your institution.");
   revalidatePath("/admin/courses");
+}
+
+export async function updateInstitutionProfile(formData:FormData){
+  const{session,institutionId}=await requireCollegeAdmin();const name=clean(formData.get("name"));
+  if(name.length<2)throw new Error("Institution name is required.");
+  await prisma.$executeRaw`UPDATE public.institutions SET name=${name},metadata=jsonb_set(coalesce(metadata,'{}'::jsonb),'{contact}',${JSON.stringify({email:clean(formData.get("email")),phone:clean(formData.get("phone")),address:clean(formData.get("address"))})}::jsonb,true),updated_at=now() WHERE id=${institutionId}::uuid`;
+  await prisma.$executeRaw`INSERT INTO public.audit_logs(actor_id,institution_id,action,target_type,target_id,new_values) VALUES(${session.user.id}::uuid,${institutionId}::uuid,'institution.profile_updated','institution',${institutionId},${JSON.stringify({name})}::jsonb)`;
+  revalidatePath("/admin/institution");
 }
 
 export async function bulkUpdateStudents(formData: FormData) {

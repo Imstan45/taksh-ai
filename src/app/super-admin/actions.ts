@@ -22,7 +22,7 @@ export async function createInstitution(formData: FormData) {
   await prisma.$executeRaw`
     INSERT INTO public.institutions (name, slug)
     VALUES (${name}, ${slug})
-    ON CONFLICT (slug) DO UPDATE SET name = excluded.name, active = true, updated_at = now()
+    ON CONFLICT (slug) DO UPDATE SET name = excluded.name, status = 'active', updated_at = now()
   `;
   await prisma.$executeRaw`
     INSERT INTO public.audit_logs (actor_id, action, target_type, target_id, new_values)
