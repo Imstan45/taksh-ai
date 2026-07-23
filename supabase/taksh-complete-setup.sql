@@ -7,6 +7,14 @@ begin;
 
 -- Older Taksh deployments may already contain tables with fewer columns.
 -- Add canonical columns before the production baseline creates indexes/policies.
+-- Function return types cannot be changed with CREATE OR REPLACE. Remove legacy
+-- authorization helpers and dependent legacy policies; migrations 001 and 002
+-- recreate the canonical functions and complete RLS policy set.
+drop function if exists public.current_user_role() cascade;
+drop function if exists public.current_institution_id() cascade;
+drop function if exists public.is_super_admin() cascade;
+drop function if exists public.verify_taksh_schema() cascade;
+
 do $$
 begin
   if to_regclass('public.audit_logs') is not null then
