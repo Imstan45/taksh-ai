@@ -16,4 +16,4 @@ Required Supabase redirect allow-list entries:
 - `${NEXT_PUBLIC_APP_URL}/verify-email`
 - `${NEXT_PUBLIC_APP_URL}/reset-password`
 - `${NEXT_PUBLIC_APP_URL}/api/auth/callback/credentials`
-- `${NEXT_PUBLIC_CONTENT_FACTORY_URL}/auth/callback`
+- `/superadmin/content-factory` (served by the main Taksh deployment)

@@ -52,7 +52,6 @@ export async function GET() {
       database,
       schema: missingTables.length === 0,
       supabase: environment.supabase,
-      contentFactory: environment.contentFactory,
     },
     schemaVersion,
     missingConfiguration: environment.missing,

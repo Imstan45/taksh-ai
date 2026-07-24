@@ -32,7 +32,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   ],
   SUPER_ADMIN: [
     { href: "/super-admin", label: "Platform dashboard" },
-    { href: "/super-admin/content-factory", label: "Content Factory" },
+      { href: "/superadmin/content-factory", label: "Content Factory" },
     { href: "/super-admin/audit", label: "Audit history" },
   ],
 };

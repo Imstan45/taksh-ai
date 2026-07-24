@@ -1,6 +1,5 @@
 packages:
   - "."
-  - "content factory"
 
 allowBuilds:
   '@prisma/engines': true

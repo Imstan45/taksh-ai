@@ -8,9 +8,7 @@ const mainEnvironmentSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
   AUTH_SECRET: z.string().min(24),
   NEXT_PUBLIC_APP_URL: url,
-  NEXT_PUBLIC_CONTENT_FACTORY_URL: url.optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
-  CONTENT_FACTORY_AUTH_SECRET: z.string().min(32),
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   DEPLOYMENT_VERSION: z.string().min(1).optional(),
 });
@@ -35,7 +33,6 @@ export function environmentReadiness() {
   return {
     valid: parsed.success,
     supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-    contentFactory: Boolean(process.env.NEXT_PUBLIC_CONTENT_FACTORY_URL),
     deploymentVersion: process.env.DEPLOYMENT_VERSION ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "development",
     missing: parsed.success ? [] : [...new Set(parsed.error.issues.map((issue) => String(issue.path[0])))],
   };

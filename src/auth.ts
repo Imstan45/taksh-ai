@@ -99,9 +99,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         return true;
       }
-      if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/admin") && !path.startsWith("/super-admin")) return true;
+      if (!path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
       if (!session?.user) {
-        if (path.startsWith("/super-admin")) {
+        if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) {
           const loginUrl = new URL("/super-admin/login", request.nextUrl);
           loginUrl.searchParams.set("callbackUrl", path);
           return Response.redirect(loginUrl);
@@ -113,7 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         return false;
       }
-      if (path.startsWith("/super-admin")) return session.user.role === "SUPER_ADMIN";
+      if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
       return session.user.role === "STUDENT";
     },
