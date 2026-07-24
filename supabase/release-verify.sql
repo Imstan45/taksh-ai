@@ -26,7 +26,9 @@ begin
   select string_agg(name,', ') into missing from unnest(array[
     'invitations_pending_email_role_unique','assessment_one_open_attempt',
     'assessment_assignment_student_unique','memberships_roll_number_unique',
-    'user_roles_directory_idx','assignments_batch_active_idx'
+    'user_roles_directory_idx','assignments_batch_active_idx',
+    'institutions_slug_upsert_unique','institution_course_access_upsert_unique',
+    'student_course_assignments_upsert_unique'
   ]) name where to_regclass('public.'||name) is null;
   if missing is not null then raise exception 'Missing required indexes: %',missing; end if;
 
@@ -43,7 +45,7 @@ begin
     or not exists(select 1 from pg_trigger where tgname='faculty_assignments_institution_guard' and not tgisinternal)
     then raise exception 'Required tenant relationship trigger is missing'; end if;
 
-  if exists(select 1 from generate_series(1,8) n where not exists(
+  if exists(select 1 from generate_series(1,9) n where not exists(
     select 1 from public.schema_migrations where version='20260724000'||n))
     then raise exception 'One or more ordered migrations 001-008 are not recorded'; end if;
 end $$;

@@ -11,6 +11,7 @@ Apply the migrations exactly in filename order:
 6. `202607240006_student_operations.sql`
 7. `202607240007_assessment_management.sql`
 8. `202607240008_release_indexes.sql`
+9. `202607240009_legacy_write_compatibility.sql`
 
 With Supabase CLI:
 
