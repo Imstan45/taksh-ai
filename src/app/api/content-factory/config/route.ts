@@ -1,6 +1,7 @@
 import { factoryEnvironmentReadiness } from "@/lib/content-factory/env";
 import { requireFactorySession } from "@/lib/content-factory/auth";
 import { supabaseRequest } from "@/lib/content-factory/supabase-rest";
+import { geminiConfigured, resolveGeminiModel } from "@/lib/ai/gemini";
 
 export const runtime = "edge";
 
@@ -17,7 +18,8 @@ export async function GET(request: Request) {
     }
   }
   return Response.json({
-    gemini: readiness.configured.gemini,
+    gemini: geminiConfigured(),
+    model: resolveGeminiModel(),
     supabase: readiness.configured.supabase,
     database,
     missing: readiness.missing,

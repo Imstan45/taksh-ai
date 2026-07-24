@@ -2,6 +2,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { requireCollegeAdmin } from "@/lib/admin-scope";
 import { prisma } from "@/lib/prisma";
 import { updateInstitutionProfile } from "../actions";
+import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 
 type InstitutionRow = {
   name: string;
@@ -16,7 +17,7 @@ export default async function InstitutionProfile() {
     SELECT name,slug,status,metadata FROM public.institutions WHERE id=${institutionId}::uuid
   `;
   const institution = rows[0];
-  return <DashboardShell {...session.user}><form action={updateInstitutionProfile} className="glass-card grid max-w-2xl gap-4">
+  return <DashboardShell {...session.user}><ActionFeedbackForm action={updateInstitutionProfile} successMessage="Institution profile saved successfully." pendingMessage="Saving institution profile…" className="glass-card grid max-w-2xl gap-4">
     <h2 className="text-2xl font-semibold">Institution profile</h2>
     <p className="text-sm text-zinc-400">{institution.slug} · {institution.status}</p>
     <label>Name<input className="field mt-2" name="name" defaultValue={institution.name} required /></label>
@@ -24,5 +25,5 @@ export default async function InstitutionProfile() {
     <label>Phone<input className="field mt-2" name="phone" defaultValue={institution.metadata?.contact?.phone} /></label>
     <label>Address<textarea className="field mt-2" name="address" defaultValue={institution.metadata?.contact?.address} /></label>
     <button className="btn-primary">Save institution profile</button>
-  </form></DashboardShell>;
+  </ActionFeedbackForm></DashboardShell>;
 }

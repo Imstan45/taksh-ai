@@ -95,6 +95,18 @@ export async function PATCH(request: Request, context: Context) {
           change_summary: body.changeNote || `Status changed from ${currentStatus} to ${nextStatus}`,
         }),
       }, credentials);
+      await supabaseRequest("audit_logs", {
+        method: "POST",
+        body: JSON.stringify({
+          actor_id: session.sub,
+          action: `content.${nextStatus}`,
+          target_type: "taksh_content_asset",
+          target_id: id,
+          previous_values: { status: currentStatus, version: nextVersion - 1 },
+          new_values: { status: nextStatus, version: nextVersion },
+          metadata: { source: "content_factory" },
+        }),
+      }, credentials);
     }
     return Response.json({ asset: records[0] });
   } catch (error) {

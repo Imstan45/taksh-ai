@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { inviteUser, resendInvitation, revokeInvitation, updateUserAccess, updateUserStatus } from "../actions";
+import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ status?: string; role?: string; institution?: string }> }) {
   const session = await auth();
@@ -31,12 +32,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   ]);
   return (
     <DashboardShell {...session.user}>
-      <form action={inviteUser} className="glass-card mb-6 grid gap-3 md:grid-cols-[1fr_180px_220px_auto]">
+      <ActionFeedbackForm action={inviteUser} successMessage="Invitation sent successfully." pendingMessage="Sending invitation…" className="glass-card mb-6 grid gap-3 md:grid-cols-[1fr_180px_220px_auto]">
         <input className="field" name="email" type="email" placeholder="Invite email" required />
         <select className="field" name="role" required><option value="STUDENT">Student</option><option value="FACULTY">Faculty</option><option value="COLLEGE_ADMIN">College Admin</option></select>
         <select className="field" name="institutionId" required><option value="">Choose institution</option>{institutions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>
         <button className="btn-primary">Send invitation</button>
-      </form>
+      </ActionFeedbackForm>
       <section className="glass-card mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Invitations</h2>
           <form className="flex flex-wrap gap-2">

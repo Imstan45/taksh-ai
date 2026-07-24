@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Flag, Loader2, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 
 type OptionKey = "A" | "B" | "C" | "D";
@@ -52,6 +52,10 @@ export function AptitudeAssessment() {
   const [attemptTicket, setAttemptTicket] = useState("");
   const [startedAt, setStartedAt] = useState("");
   const [result, setResult] = useState<AssessmentResult>();
+  const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [flagged, setFlagged] = useState<Set<string>>(new Set());
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     loadAssessment();
@@ -81,6 +85,10 @@ export function AptitudeAssessment() {
     setAnswers({});
     setCurrentIndex(0);
     setResult(undefined);
+    setSubmitting(false);
+    setConfirming(false);
+    setFlagged(new Set());
+    setSuccess(null);
 
     try {
       const response = await fetch("/api/assessment/questions", { cache: "no-store" });
@@ -104,24 +112,33 @@ export function AptitudeAssessment() {
   }
 
   async function submitAssessment() {
-    if (submitted) return;
+    if (submitted || submitting) return;
+    setSubmitting(true);
+    setConfirming(false);
     setError(null);
-    const response = await fetch("/api/assessment/submit", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        attemptTicket,
-        startedAt,
-        answers: Object.entries(answers).map(([questionId, selectedAnswer]) => ({ questionId, selectedAnswer })),
-      }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setError(payload.error ?? "Assessment could not be submitted.");
-      return;
+    try {
+      const response = await fetch("/api/assessment/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          attemptTicket,
+          startedAt,
+          answers: Object.entries(answers).map(([questionId, selectedAnswer]) => ({ questionId, selectedAnswer })),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error ?? "Assessment could not be submitted.");
+        return;
+      }
+      setResult(payload);
+      setSubmitted(true);
+      setSuccess("Assessment submitted successfully. Your result is ready.");
+    } catch {
+      setError("Assessment could not be submitted. Your answers are still here; please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setResult(payload);
-    setSubmitted(true);
   }
 
   const answeredCount = Object.keys(answers).length;
@@ -173,6 +190,7 @@ export function AptitudeAssessment() {
         </div>
 
         {error ? <p className="mt-5 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100">{error}</p> : null}
+        {success ? <p role="status" className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-100">{success}</p> : null}
 
         {!submitted && current ? (
           <div className="mt-8">
@@ -205,8 +223,12 @@ export function AptitudeAssessment() {
             <div className="mt-8 flex flex-wrap justify-between gap-3">
               <button className="btn-ghost border border-white/10" type="button" disabled={currentIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>Previous</button>
               <div className="flex gap-3">
-                <button className="btn-ghost border border-white/10" type="button" disabled={currentIndex === questions.length - 1} onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>Next</button>
-                <button className="btn-primary" type="button" onClick={() => void submitAssessment()}>Submit assessment</button>
+                <button className={`btn-ghost gap-2 border ${flagged.has(current.id) ? "border-amber-400/30 bg-amber-500/10 text-amber-200" : "border-white/10"}`} type="button" onClick={() => setFlagged((items) => { const next = new Set(items); if (next.has(current.id)) next.delete(current.id); else next.add(current.id); return next; })}><Flag className="size-4" />{flagged.has(current.id) ? "Flagged" : "Flag"}</button>
+                {currentIndex < questions.length - 1 ? (
+                  <button className="btn-primary" type="button" onClick={() => setCurrentIndex((value) => Math.min(questions.length - 1, value + 1))}>Next question</button>
+                ) : (
+                  <button className="btn-primary" type="button" disabled={submitting} onClick={() => setConfirming(true)}>{submitting && <Loader2 className="size-4 animate-spin" />}Review and submit</button>
+                )}
               </div>
             </div>
           </div>
@@ -283,8 +305,28 @@ export function AptitudeAssessment() {
             </button>
           ))}
         </div>
-        {!submitted ? <p className="mt-6 text-xs leading-5 text-zinc-500">The timer auto-submits when it reaches zero. You can move between questions anytime before submission.</p> : null}
+        {!submitted ? <><p className="mt-6 text-xs leading-5 text-zinc-500">The timer auto-submits when it reaches zero. You can move between questions anytime before submission.</p><button className="mt-3 text-xs text-zinc-500 underline decoration-zinc-700 underline-offset-4 hover:text-zinc-300" type="button" onClick={() => setConfirming(true)}>Finish assessment early</button></> : null}
       </aside>
+      {confirming && !submitted ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="submit-title">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111218] p-6 shadow-2xl">
+          <h3 id="submit-title" className="text-xl font-semibold">Submit assessment?</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">Submission is permanent. Review the attempt summary before continuing.</p>
+          <dl className="mt-5 grid grid-cols-2 gap-3">
+            <Summary label="Answered" value={answeredCount} />
+            <Summary label="Unanswered" value={questions.length - answeredCount} warn={questions.length > answeredCount} />
+            <Summary label="Flagged" value={flagged.size} warn={flagged.size > 0} />
+            <Summary label="Time remaining" value={formatTime(remainingSeconds)} />
+          </dl>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button className="btn-ghost border border-white/10" disabled={submitting} onClick={() => setConfirming(false)}>Return to assessment</button>
+            <button className="btn-primary" disabled={submitting} onClick={() => void submitAssessment()}>{submitting && <Loader2 className="size-4 animate-spin" />}{submitting ? "Submitting…" : "Submit assessment permanently"}</button>
+          </div>
+        </div>
+      </div> : null}
     </div>
   );
+}
+
+function Summary({ label, value, warn = false }: { label: string; value: string | number; warn?: boolean }) {
+  return <div className={`rounded-xl border p-3 ${warn ? "border-amber-400/20 bg-amber-500/10" : "border-white/10 bg-white/[.03]"}`}><dt className="text-xs text-zinc-500">{label}</dt><dd className="mt-1 font-semibold">{value}</dd></div>;
 }
