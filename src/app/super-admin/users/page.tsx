@@ -15,7 +15,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       FROM auth.users u JOIN public.user_roles r ON r.user_id = u.id
       ORDER BY u.email
     `,
-    prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id, name FROM public.institutions WHERE status = 'active' ORDER BY name`,
+    prisma.$queryRaw<Array<{ id: string; name: string; institution_type: string }>>`SELECT id, name, institution_type FROM public.institutions WHERE status = 'active' ORDER BY name`,
     prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; institution_name: string | null; status: string; expires_at: Date }>>`
       SELECT invitation.id, invitation.email, invitation.role::text, invitation.institution_id,
         institution.name AS institution_name,
@@ -35,7 +35,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       <ActionFeedbackForm action={inviteUser} successMessage="Invitation sent successfully." pendingMessage="Sending invitation…" className="glass-card mb-6 grid gap-3 md:grid-cols-[1fr_180px_220px_auto]">
         <input className="field" name="email" type="email" placeholder="Invite email" required />
         <select className="field" name="role" required><option value="STUDENT">Student</option><option value="FACULTY">Faculty</option><option value="COLLEGE_ADMIN">College Admin</option></select>
-        <select className="field" name="institutionId" required><option value="">Choose institution</option>{institutions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>
+        <select className="field" name="institutionId" required><option value="">Choose institution</option>{institutions.map((item) => <option value={item.id} key={item.id}>{item.name} ({item.institution_type})</option>)}</select>
         <button className="btn-primary">Send invitation</button>
       </ActionFeedbackForm>
       <section className="glass-card mb-6">
@@ -63,16 +63,18 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       <section className="glass-card">
         <h2 className="text-xl font-semibold">Platform users</h2>
         <div className="mt-5 space-y-3">
-          {users.map((user) => (
-            <form action={updateUserAccess} className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-[1fr_180px_220px_auto] md:items-center" key={user.id}>
-              <input type="hidden" name="userId" value={user.id} />
+          {users.map((user) => <div className="rounded-xl border border-white/10 p-4" key={user.id}>
+            <ActionFeedbackForm action={updateUserAccess} successMessage={`${user.email} access updated successfully.`} pendingMessage="Updating user institution…" className="grid gap-3 md:grid-cols-[1fr_180px_220px_auto] md:items-center">
+              <input type="hidden" name="userId" value={user.id}/>
               <div><b>{user.email}</b><p className="text-xs text-zinc-500">{user.id}</p></div>
-              <select className="field" name="role" defaultValue={user.role}>{["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].map((role) => <option value={role} key={role}>{role.replaceAll("_", " ")}</option>)}</select>
-              <select className="field" name="institutionId" defaultValue={user.institution_id ?? ""}><option value="">No institution</option>{institutions.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select>
-              <button className="btn-primary" type="submit">Update</button>
-              <div className="md:col-span-4 flex justify-end"><button formAction={updateUserStatus} name="status" value={user.account_status === "active" ? "suspended" : "active"} className="btn-ghost border border-white/10" type="submit">{user.account_status === "active" ? "Suspend account" : "Reactivate account"}</button></div>
-            </form>
-          ))}
+              <select className="field" name="role" defaultValue={user.role}>{["STUDENT","FACULTY","COLLEGE_ADMIN","SUPER_ADMIN"].map(role=><option value={role} key={role}>{role.replaceAll("_"," ")}</option>)}</select>
+              <select className="field" name="institutionId" defaultValue={user.institution_id??""}><option value="">No institution</option>{institutions.map(item=><option value={item.id} key={item.id}>{item.name} ({item.institution_type})</option>)}</select>
+              <button className="btn-primary">Update assignment</button>
+            </ActionFeedbackForm>
+            <ActionFeedbackForm action={updateUserStatus} successMessage={`${user.email} status updated successfully.`} pendingMessage="Updating account status…" confirmMessage={`${user.account_status==="active"?"Suspend":"Reactivate"} ${user.email}?`} className="mt-3 flex justify-end">
+              <input type="hidden" name="userId" value={user.id}/><button name="status" value={user.account_status==="active"?"suspended":"active"} className="btn-ghost border border-white/10">{user.account_status==="active"?"Suspend account":"Reactivate account"}</button>
+            </ActionFeedbackForm>
+          </div>)}
         </div>
       </section>
     </DashboardShell>

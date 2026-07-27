@@ -67,6 +67,7 @@ create table if not exists public.institutions (
   name text not null,
   slug text not null unique,
   status text not null default 'active' check (status in ('active', 'suspended', 'archived')),
+  institution_type text not null default 'college' check (institution_type in ('school', 'college')),
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -74,6 +75,12 @@ create table if not exists public.institutions (
 
 alter table public.institutions add column if not exists status text not null default 'active';
 alter table public.institutions add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.institutions add column if not exists institution_type text not null default 'college';
+alter table public.institutions drop constraint if exists institutions_institution_type_check;
+alter table public.institutions add constraint institutions_institution_type_check
+  check (institution_type in ('school', 'college'));
+create index if not exists institutions_type_status_idx
+  on public.institutions(institution_type, status);
 
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,

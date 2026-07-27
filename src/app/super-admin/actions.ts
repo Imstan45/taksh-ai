@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { mainEnvironment } from "@/lib/env";
 import { invitationInputSchema } from "@/lib/invitations";
 import { createToken, hashToken } from "@/lib/security/tokens";
+import { institutionCanAccessCourse, type InstitutionType } from "@/lib/institution-content";
 
 async function requireSuperAdmin() {
   const session = await auth();
@@ -18,15 +19,18 @@ export async function createInstitution(formData: FormData) {
   const session = await requireSuperAdmin();
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const institutionType = String(formData.get("institutionType") ?? "") as InstitutionType;
   if (name.length < 2 || !slug) throw new Error("A valid institution name and slug are required.");
+  if (!["school", "college"].includes(institutionType)) throw new Error("Choose whether this institution is a school or college.");
   await prisma.$executeRaw`
-    INSERT INTO public.institutions (name, slug)
-    VALUES (${name}, ${slug})
-    ON CONFLICT (slug) DO UPDATE SET name = excluded.name, status = 'active', updated_at = now()
+    INSERT INTO public.institutions (name, slug, institution_type)
+    VALUES (${name}, ${slug}, ${institutionType})
+    ON CONFLICT (slug) DO UPDATE SET name = excluded.name, institution_type = excluded.institution_type,
+      status = 'active', updated_at = now()
   `;
   await prisma.$executeRaw`
     INSERT INTO public.audit_logs (actor_id, action, target_type, target_id, new_values)
-    VALUES (${session.user.id}::uuid, 'institution.upserted', 'institution', ${slug}, ${JSON.stringify({ name, slug })}::jsonb)
+    VALUES (${session.user.id}::uuid, 'institution.upserted', 'institution', ${slug}, ${JSON.stringify({ name, slug, institutionType })}::jsonb)
   `;
   revalidatePath("/super-admin/institutions");
 }
@@ -35,10 +39,16 @@ export async function updateUserAccess(formData: FormData) {
   const session = await requireSuperAdmin();
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
-  const institutionId = String(formData.get("institutionId") ?? "");
+  let institutionId = String(formData.get("institutionId") ?? "");
   if (!["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(role)) throw new Error("Invalid role.");
   if (session.user.id === userId && role !== "SUPER_ADMIN") throw new Error("You cannot demote your own Super Admin account.");
-  if (["FACULTY", "COLLEGE_ADMIN"].includes(role) && !institutionId) throw new Error("This role requires an institution.");
+  if (["STUDENT", "FACULTY", "COLLEGE_ADMIN"].includes(role) && !institutionId) throw new Error("This role requires an institution.");
+  if (role === "SUPER_ADMIN") institutionId = "";
+  if (institutionId) {
+    const institution = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM public.institutions WHERE id=${institutionId}::uuid AND status='active'`;
+    if (!institution[0]) throw new Error("Choose an active institution.");
+  }
   const previousRows = await prisma.$queryRaw<Array<{ role: string; institution_id: string | null }>>`
     SELECT role::text, institution_id FROM public.user_roles WHERE user_id = ${userId}::uuid
   `;
@@ -51,23 +61,33 @@ export async function updateUserAccess(formData: FormData) {
     `;
     if (Number(activeSuperAdmins[0]?.count ?? 0) <= 1) throw new Error("The final active Super Admin cannot be demoted.");
   }
-  await prisma.$executeRaw`
-    UPDATE public.user_roles
-    SET role = ${role}::public.app_role,
-        institution_id = ${institutionId || null}::uuid,
-        authorization_version = authorization_version + 1,
-        updated_at = now()
-    WHERE user_id = ${userId}::uuid
-  `;
-  await prisma.$executeRaw`
-    INSERT INTO public.audit_logs (
-      actor_id, institution_id, action, target_type, target_id, previous_values, new_values
-    ) VALUES (
-      ${session.user.id}::uuid, ${institutionId || null}::uuid, 'user.access_changed', 'user', ${userId},
-      ${JSON.stringify(previous)}::jsonb,
-      ${JSON.stringify({ role, institutionId: institutionId || null })}::jsonb
-    )
-  `;
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      UPDATE public.user_roles
+      SET role = ${role}::public.app_role,
+          institution_id = ${institutionId || null}::uuid,
+          authorization_version = authorization_version + 1,
+          updated_at = now()
+      WHERE user_id = ${userId}::uuid
+    `;
+    if (previous.institution_id !== (institutionId || null)) {
+      await tx.$executeRaw`
+        UPDATE public.user_academic_memberships SET active=false,updated_at=now()
+        WHERE user_id=${userId}::uuid AND institution_id IS DISTINCT FROM ${institutionId || null}::uuid AND active`;
+      await tx.$executeRaw`
+        UPDATE public.student_course_assignments SET active=false,revoked_at=now()
+        WHERE student_id=${userId}::uuid AND institution_id IS DISTINCT FROM ${institutionId || null}::uuid AND active`;
+    }
+    await tx.$executeRaw`
+      INSERT INTO public.audit_logs (
+        actor_id, institution_id, action, target_type, target_id, previous_values, new_values
+      ) VALUES (
+        ${session.user.id}::uuid, ${institutionId || null}::uuid, 'user.access_changed', 'user', ${userId},
+        ${JSON.stringify(previous)}::jsonb,
+        ${JSON.stringify({ role, institutionId: institutionId || null })}::jsonb
+      )
+    `;
+  });
   revalidatePath("/super-admin/users");
 }
 
@@ -104,17 +124,20 @@ export async function updateInstitutionStatus(formData: FormData) {
   const session = await requireSuperAdmin();
   const institutionId = String(formData.get("institutionId") ?? "");
   const status = String(formData.get("status") ?? "");
+  const institutionType = String(formData.get("institutionType") ?? "") as InstitutionType;
   if (!["active", "suspended", "archived"].includes(status)) throw new Error("Invalid institution status.");
-  const previous = await prisma.$queryRaw<Array<{ status: string }>>`
-    SELECT status FROM public.institutions WHERE id = ${institutionId}::uuid
+  if (!["school", "college"].includes(institutionType)) throw new Error("Invalid institution type.");
+  const previous = await prisma.$queryRaw<Array<{ status: string; institution_type: string }>>`
+    SELECT status,institution_type FROM public.institutions WHERE id = ${institutionId}::uuid
   `;
+  if (!previous[0]) throw new Error("Institution not found.");
   await prisma.$executeRaw`
-    UPDATE public.institutions SET status = ${status}, updated_at = now() WHERE id = ${institutionId}::uuid
+    UPDATE public.institutions SET status = ${status}, institution_type=${institutionType}, updated_at = now() WHERE id = ${institutionId}::uuid
   `;
   await prisma.$executeRaw`
     INSERT INTO public.audit_logs (actor_id, institution_id, action, target_type, target_id, previous_values, new_values)
     VALUES (${session.user.id}::uuid, ${institutionId}::uuid, 'institution.status_changed', 'institution', ${institutionId},
-      ${JSON.stringify(previous[0] ?? {})}::jsonb, ${JSON.stringify({ status })}::jsonb)
+      ${JSON.stringify(previous[0])}::jsonb, ${JSON.stringify({ status, institutionType })}::jsonb)
   `;
   revalidatePath("/super-admin/institutions");
 }
@@ -124,6 +147,12 @@ export async function grantInstitutionCourse(formData: FormData) {
   const institutionId = String(formData.get("institutionId") ?? "");
   const course = String(formData.get("course") ?? "").trim();
   if (!institutionId || !course) throw new Error("Institution and course are required.");
+  const institutions = await prisma.$queryRaw<Array<{ institution_type: InstitutionType }>>`
+    SELECT institution_type FROM public.institutions WHERE id=${institutionId}::uuid AND status='active'`;
+  if (!institutions[0]) throw new Error("Choose an active institution.");
+  if (!institutionCanAccessCourse(institutions[0].institution_type, course)) {
+    throw new Error(`This course is not available to ${institutions[0].institution_type} institutions.`);
+  }
   await prisma.$executeRaw`
     INSERT INTO public.institution_course_access (institution_id, course, created_by)
     VALUES (${institutionId}::uuid, ${course}, ${session.user.id}::uuid)
@@ -141,14 +170,16 @@ export async function assignStudentCourse(formData: FormData) {
   const session = await requireSuperAdmin();
   const studentId = String(formData.get("studentId") ?? "");
   const course = String(formData.get("course") ?? "").trim();
-  const scope = await prisma.$queryRaw<Array<{ institution_id: string }>>`
-    SELECT role.institution_id
+  const scope = await prisma.$queryRaw<Array<{ institution_id: string; institution_type: InstitutionType }>>`
+    SELECT role.institution_id,institution.institution_type
     FROM public.user_roles role
+    JOIN public.institutions institution ON institution.id=role.institution_id
     JOIN public.institution_course_access access
       ON access.institution_id = role.institution_id AND access.course = ${course} AND access.active
     WHERE role.user_id = ${studentId}::uuid AND role.role = 'STUDENT' AND role.account_status = 'active'
   `;
   if (!scope[0]?.institution_id) throw new Error("The student is not active or the course is not available to their institution.");
+  if (!institutionCanAccessCourse(scope[0].institution_type, course)) throw new Error("This course does not match the student's institution type.");
   await prisma.$executeRaw`
     INSERT INTO public.student_course_assignments (
       student_id, institution_id, course, assigned_by, active
