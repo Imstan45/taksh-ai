@@ -24,7 +24,13 @@ export default async function Page() {
       (SELECT count(*) FROM public.academic_batches WHERE institution_id=${institutionId}::uuid AND status='active')::bigint batches,
       (SELECT count(*) FROM public.student_course_assignments WHERE institution_id=${institutionId}::uuid AND active)::bigint active_assignments,
       (SELECT round(avg(progress_percentage),1) FROM public.student_content_progress progress JOIN public.user_roles member ON member.user_id=progress.student_id WHERE member.institution_id=${institutionId}::uuid)::float completion,
-      (SELECT round(100.0*count(DISTINCT attempt.student_id)/nullif(count(DISTINCT assignment.student_id),0),1) FROM public.assessment_assignments assignment LEFT JOIN public.assessment_attempts attempt ON attempt.assignment_id=assignment.id WHERE assignment.institution_id=${institutionId}::uuid)::float assessment_participation
+      (SELECT round(100.0 * count(DISTINCT attempt.student_id) /
+        nullif(count(DISTINCT coalesce(assignment.student_id,membership.user_id)),0),1)
+       FROM public.assessment_assignments assignment
+       LEFT JOIN public.user_academic_memberships membership
+         ON assignment.batch_id=membership.batch_id AND membership.membership_type='STUDENT' AND membership.active
+       LEFT JOIN public.assessment_attempts attempt ON attempt.assignment_id=assignment.id
+       WHERE assignment.institution_id=${institutionId}::uuid)::float assessment_participation
     FROM public.user_roles role WHERE role.institution_id=${institutionId}::uuid
   `;
   const metrics = rows[0];

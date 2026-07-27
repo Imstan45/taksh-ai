@@ -1,4 +1,5 @@
 import { DashboardShell } from "@/components/dashboard-shell";
+import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 import { prisma } from "@/lib/prisma";
 import { requireCollegeAdmin } from "@/lib/admin-scope";
 import { assignInstitutionCourse, revokeInstitutionCourse } from "../actions";
@@ -12,5 +13,20 @@ export default async function CoursesPage() {
     prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id,name FROM public.departments WHERE institution_id=${institutionId}::uuid AND status='active' ORDER BY name`,
     prisma.$queryRaw<Array<{ id: string; email: string; course: string; active: boolean; due_at: Date | null }>>`SELECT assignment.id,user_account.email,assignment.course,assignment.active,assignment.due_at FROM public.student_course_assignments assignment JOIN auth.users user_account ON user_account.id=assignment.student_id WHERE assignment.institution_id=${institutionId}::uuid ORDER BY assignment.assigned_at DESC LIMIT 100`,
   ]);
-  return <DashboardShell {...session.user}><form action={assignInstitutionCourse} className="glass-card grid gap-3 md:grid-cols-2"><h2 className="text-xl font-semibold md:col-span-2">Assign granted course</h2><select className="field" name="course" required><option value="">Course</option>{courses.map((item)=><option key={item.course}>{item.course}</option>)}</select><select className="field" name="studentId"><option value="">Individual student</option>{students.map((item)=><option value={item.user_id} key={item.user_id}>{item.email}</option>)}</select><select className="field" name="batchId"><option value="">Or entire batch</option>{batches.map((item)=><option value={item.id} key={item.id}>{item.name}</option>)}</select><select className="field" name="departmentId"><option value="">Or entire department</option>{departments.map((item)=><option value={item.id} key={item.id}>{item.name}</option>)}</select><div className="grid grid-cols-2 gap-3"><input className="field" name="startsAt" type="datetime-local"/><input className="field" name="dueAt" type="datetime-local"/></div><button className="btn-primary md:col-span-2">Assign course</button></form><section className="glass-card mt-6"><h2 className="text-xl font-semibold">Assignments</h2><div className="mt-5 space-y-2">{assignments.map((item)=><form action={revokeInstitutionCourse} className="flex items-center justify-between rounded-xl border border-white/10 p-4" key={item.id}><input type="hidden" name="id" value={item.id}/><div><b>{item.course}</b><p className="text-sm text-zinc-400">{item.email}{item.due_at?` · due ${item.due_at.toLocaleDateString()}`:""}</p></div>{item.active?<button className="btn-ghost">Revoke</button>:<span>Revoked</span>}</form>)}</div></section></DashboardShell>;
+  return <DashboardShell {...session.user}>
+    <ActionFeedbackForm action={assignInstitutionCourse} successMessage="Course assigned successfully." pendingMessage="Assigning course…" className="glass-card grid gap-3 md:grid-cols-2">
+      <h2 className="text-xl font-semibold md:col-span-2">Assign granted course</h2>
+      <select className="field" name="course" required><option value="">Course</option>{courses.map(item=><option key={item.course}>{item.course}</option>)}</select>
+      <select className="field" name="studentId"><option value="">Individual student</option>{students.map(item=><option value={item.user_id} key={item.user_id}>{item.email}</option>)}</select>
+      <select className="field" name="batchId"><option value="">Or entire batch</option>{batches.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select>
+      <select className="field" name="departmentId"><option value="">Or entire department</option>{departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select>
+      <div className="grid grid-cols-2 gap-3"><input className="field" name="startsAt" type="datetime-local"/><input className="field" name="dueAt" type="datetime-local"/></div>
+      <button className="btn-primary md:col-span-2">Assign course</button>
+    </ActionFeedbackForm>
+    <section className="glass-card mt-6"><h2 className="text-xl font-semibold">Assignments</h2><div className="mt-5 space-y-2">{assignments.map(item=>
+      <div className="flex items-center justify-between rounded-xl border border-white/10 p-4" key={item.id}>
+        <div><b>{item.course}</b><p className="text-sm text-zinc-400">{item.email}{item.due_at?` · due ${item.due_at.toLocaleDateString()}`:""}</p></div>
+        {item.active?<ActionFeedbackForm action={revokeInstitutionCourse} successMessage="Course assignment revoked." pendingMessage="Revoking assignment…" confirmMessage={`Revoke ${item.course} from ${item.email}?`}><input type="hidden" name="id" value={item.id}/><button className="btn-ghost">Revoke</button></ActionFeedbackForm>:<span>Revoked</span>}
+      </div>)}</div></section>
+  </DashboardShell>;
 }

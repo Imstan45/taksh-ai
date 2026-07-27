@@ -149,7 +149,7 @@ export async function updateInstitutionMember(formData: FormData) {
     if (!valid[0]) throw new Error("Department is outside your institution.");
   }
   if (batchId) {
-    const valid = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM public.academic_batches WHERE id=${batchId}::uuid AND institution_id=${institutionId}::uuid`;
+    const valid = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM public.academic_batches WHERE id=${batchId}::uuid AND institution_id=${institutionId}::uuid AND (${departmentId}='' OR department_id=${departmentId || null}::uuid)`;
     if (!valid[0]) throw new Error("Batch is outside your institution.");
   }
   await prisma.$transaction(async (tx) => {
@@ -171,6 +171,9 @@ export async function assignInstitutionCourse(formData: FormData) {
   const departmentId = clean(formData.get("departmentId"));
   const startsAt = clean(formData.get("startsAt"));
   const dueAt = clean(formData.get("dueAt"));
+  const targets = [studentId, batchId, departmentId].filter(Boolean);
+  if (targets.length !== 1) throw new Error("Choose exactly one student, batch, or department.");
+  if (startsAt && dueAt && new Date(dueAt) <= new Date(startsAt)) throw new Error("Due date must be after the start date.");
   const grant = await prisma.$queryRaw<Array<{ course: string }>>`
     SELECT course FROM public.institution_course_access WHERE institution_id=${institutionId}::uuid AND course=${course} AND active
   `;

@@ -11,6 +11,16 @@ export async function createAssessment(formData: FormData) {
   const duration=Number(formData.get("duration")??30),maxAttempts=Number(formData.get("maxAttempts")??1),pass=Number(formData.get("pass")??60);
   const from=String(formData.get("availableFrom")??""),until=String(formData.get("availableUntil")??"");
   if(!title||!course||!questionIds.length||(!batchId&&!studentId)) throw new Error("Title, course, questions and assignment target are required.");
+  if(batchId&&studentId) throw new Error("Choose either a batch or an individual student, not both.");
+  if(!Number.isInteger(duration)||duration<1||!Number.isInteger(maxAttempts)||maxAttempts<1||pass<0||pass>100) throw new Error("Assessment settings are invalid.");
+  if(from&&until&&new Date(until)<=new Date(from)) throw new Error("Availability end must be after the start.");
+  const uniqueQuestionIds=[...new Set(questionIds)];
+  const allowedQuestions=await prisma.$queryRaw<Array<{id:string}>>`
+    SELECT id FROM public.question_bank
+    WHERE id=ANY(${uniqueQuestionIds}::uuid[]) AND status='active'
+      AND (institution_id IS NULL OR institution_id=${institutionId}::uuid)
+  `;
+  if(allowedQuestions.length!==uniqueQuestionIds.length) throw new Error("One or more questions are unavailable to your institution.");
   const scope=await prisma.$queryRaw<Array<{ok:boolean}>>`
     SELECT true ok FROM public.institution_course_access access
     WHERE access.institution_id=${institutionId}::uuid AND access.course=${course} AND access.active
@@ -21,7 +31,7 @@ export async function createAssessment(formData: FormData) {
   await prisma.$transaction(async tx=>{
     const created=await tx.$queryRaw<Array<{id:string}>>`INSERT INTO public.assessments(institution_id,created_by,title,instructions,course,duration_minutes,max_attempts,pass_percentage,available_from,available_until)
       VALUES(${institutionId}::uuid,${session.user.id}::uuid,${title},${String(formData.get("instructions")??"")},${course},${duration},${maxAttempts},${pass},${from||null}::timestamptz,${until||null}::timestamptz) RETURNING id`;
-    for(const [index,id] of questionIds.entries()) await tx.$executeRaw`INSERT INTO public.assessment_questions(assessment_id,question_id,display_order) VALUES(${created[0].id}::uuid,${id}::uuid,${index})`;
+    for(const [index,id] of uniqueQuestionIds.entries()) await tx.$executeRaw`INSERT INTO public.assessment_questions(assessment_id,question_id,display_order) VALUES(${created[0].id}::uuid,${id}::uuid,${index})`;
     await tx.$executeRaw`INSERT INTO public.assessment_assignments(assessment_id,institution_id,batch_id,student_id,assigned_by)
       VALUES(${created[0].id}::uuid,${institutionId}::uuid,${batchId||null}::uuid,${studentId||null}::uuid,${session.user.id}::uuid)`;
   });
@@ -44,6 +54,10 @@ export async function duplicateAssessment(formData:FormData){
 
 export async function updateAssessmentSettings(formData:FormData){
   const{session,institutionId}=await requireFaculty();const id=String(formData.get("id")??""),title=String(formData.get("title")??"").trim();
-  const changed=await prisma.$executeRaw`UPDATE public.assessments SET title=${title},instructions=${String(formData.get("instructions")??"")},duration_minutes=${Number(formData.get("duration")??30)},max_attempts=${Number(formData.get("maxAttempts")??1)},pass_percentage=${Number(formData.get("pass")??60)},available_from=${String(formData.get("availableFrom")??"")||null}::timestamptz,available_until=${String(formData.get("availableUntil")??"")||null}::timestamptz,randomize_questions=${formData.get("randomize")==="on"},updated_at=now() WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid AND created_by=${session.user.id}::uuid AND status='draft'`;
+  const duration=Number(formData.get("duration")??30),maxAttempts=Number(formData.get("maxAttempts")??1),pass=Number(formData.get("pass")??60);
+  const from=String(formData.get("availableFrom")??""),until=String(formData.get("availableUntil")??"");
+  if(!title||!Number.isInteger(duration)||duration<1||!Number.isInteger(maxAttempts)||maxAttempts<1||pass<0||pass>100)throw new Error("Assessment settings are invalid.");
+  if(from&&until&&new Date(until)<=new Date(from))throw new Error("Availability end must be after the start.");
+  const changed=await prisma.$executeRaw`UPDATE public.assessments SET title=${title},instructions=${String(formData.get("instructions")??"")},duration_minutes=${duration},max_attempts=${maxAttempts},pass_percentage=${pass},available_from=${from||null}::timestamptz,available_until=${until||null}::timestamptz,randomize_questions=${formData.get("randomize")==="on"},updated_at=now() WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid AND created_by=${session.user.id}::uuid AND status='draft'`;
   if(!changed)throw new Error("Only your draft assessments can be edited.");revalidatePath(`/admin/faculty/assessments/${id}`);
 }
