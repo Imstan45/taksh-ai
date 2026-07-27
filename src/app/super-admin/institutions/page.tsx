@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 import { createInstitution, updateInstitutionStatus } from "../actions";
+import Link from "next/link";
 
 export default async function InstitutionsPage() {
   const session = await auth();
@@ -21,7 +22,7 @@ export default async function InstitutionsPage() {
     </ActionFeedbackForm>
     <section className="glass-card"><h2 className="text-xl font-semibold">Institutions</h2><div className="mt-5 divide-y divide-white/10">
       {institutions.map(item=><div className="flex flex-wrap items-center justify-between gap-4 py-4" key={item.id}>
-        <div><b>{item.name}</b><p className="text-sm text-zinc-500">{item.slug} · {item.institution_type==="school"?"School / entrance preparation":"College / graduation"}</p></div>
+        <div><Link className="font-semibold hover:text-violet-300" href={`/super-admin/institutions/${item.id}`}>{item.name}</Link><p className="text-sm text-zinc-500">{item.slug} · {item.institution_type==="school"?"School / entrance preparation":"College / graduation"}</p></div>
         <ActionFeedbackForm action={updateInstitutionStatus} successMessage={`${item.name} updated successfully.`} pendingMessage="Updating institution…" className="flex flex-wrap gap-2">
           <input type="hidden" name="institutionId" value={item.id}/>
           <select className="field" name="institutionType" defaultValue={item.institution_type}><option value="school">School</option><option value="college">College</option></select>

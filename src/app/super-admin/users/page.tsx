@@ -5,15 +5,20 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { inviteUser, resendInvitation, revokeInvitation, updateUserAccess, updateUserStatus } from "../actions";
 import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ status?: string; role?: string; institution?: string }> }) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?:string; status?: string; role?: string; institution?: string; page?:string }> }) {
   const session = await auth();
   if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
   const filters = await searchParams;
+  const page=Math.max(1,Number(filters.page)||1),limit=50,offset=(page-1)*limit;
   const [users, institutions, invitations] = await Promise.all([
     prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; account_status: string }>>`
       SELECT u.id, u.email, r.role::text, r.institution_id, r.account_status
       FROM auth.users u JOIN public.user_roles r ON r.user_id = u.id
-      ORDER BY u.email
+      WHERE (${filters.q??""}='' OR u.email ILIKE ${`%${filters.q??""}%`})
+        AND (${filters.role??""}='' OR r.role::text=${filters.role??""})
+        AND (${filters.status??""}='' OR r.account_status=${filters.status??""})
+        AND (${filters.institution??""}='' OR r.institution_id=${filters.institution||null}::uuid)
+      ORDER BY u.email LIMIT ${limit} OFFSET ${offset}
     `,
     prisma.$queryRaw<Array<{ id: string; name: string; institution_type: string }>>`SELECT id, name, institution_type FROM public.institutions WHERE status = 'active' ORDER BY name`,
     prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; institution_name: string | null; status: string; expires_at: Date }>>`
@@ -61,7 +66,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
       <section className="glass-card">
-        <h2 className="text-xl font-semibold">Platform users</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Platform users</h2><form className="flex flex-wrap gap-2"><input className="field max-w-64" name="q" placeholder="Search email" defaultValue={filters.q??""}/><select className="field max-w-48" name="role" defaultValue={filters.role??""}><option value="">All roles</option>{["STUDENT","FACULTY","COLLEGE_ADMIN","SUPER_ADMIN"].map(role=><option key={role}>{role}</option>)}</select><select className="field max-w-52" name="institution" defaultValue={filters.institution??""}><option value="">All institutions</option>{institutions.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select><button className="btn-ghost">Filter</button></form></div>
         <div className="mt-5 space-y-3">
           {users.map((user) => <div className="rounded-xl border border-white/10 p-4" key={user.id}>
             <ActionFeedbackForm action={updateUserAccess} successMessage={`${user.email} access updated successfully.`} pendingMessage="Updating user institution…" className="grid gap-3 md:grid-cols-[1fr_180px_220px_auto] md:items-center">
@@ -76,6 +81,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             </ActionFeedbackForm>
           </div>)}
         </div>
+        <div className="mt-5 flex justify-between"><span className="text-sm text-zinc-500">Page {page}</span><div className="flex gap-2">{page>1&&<a className="btn-ghost" href={`?q=${encodeURIComponent(filters.q??"")}&role=${encodeURIComponent(filters.role??"")}&institution=${encodeURIComponent(filters.institution??"")}&page=${page-1}`}>Previous</a>}{users.length===limit&&<a className="btn-ghost" href={`?q=${encodeURIComponent(filters.q??"")}&role=${encodeURIComponent(filters.role??"")}&institution=${encodeURIComponent(filters.institution??"")}&page=${page+1}`}>Next</a>}</div></div>
       </section>
     </DashboardShell>
   );
