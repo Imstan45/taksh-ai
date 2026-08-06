@@ -12,7 +12,7 @@ type Metrics = {
 
 export default async function Page() {
   const initial = await auth();
-  if (!initial?.user || !["COLLEGE_ADMIN", "FACULTY"].includes(initial.user.role)) redirect("/admin/login");
+  if (!initial?.user || !["COLLEGE_ADMIN", "FACULTY"].includes(initial.user.role)) redirect("/login?callbackUrl=/admin");
   if (initial.user.role === "FACULTY") redirect("/admin/faculty");
   const { session, institutionId } = await requireCollegeAdmin();
   const rows = await prisma.$queryRaw<Metrics[]>`

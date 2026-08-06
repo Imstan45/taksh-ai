@@ -5,7 +5,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 import { prisma } from "@/lib/prisma";
 
 export default async function InstitutionDetail({params}:{params:Promise<{institutionId:string}>}) {
-  const session=await auth(); if(!session?.user||session.user.role!=="SUPER_ADMIN")redirect("/super-admin/login");
+  const session=await auth(); if(!session?.user||session.user.role!=="SUPER_ADMIN")redirect("/login");
   const {institutionId}=await params;
   const institutions=await prisma.$queryRaw<Array<{id:string;name:string;slug:string;status:string;institution_type:string;created_at:Date}>>`SELECT id,name,slug,status,institution_type,created_at FROM public.institutions WHERE id=${institutionId}::uuid`;
   if(!institutions[0])notFound(); const institution=institutions[0];

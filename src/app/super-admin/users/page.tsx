@@ -7,7 +7,7 @@ import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?:string; status?: string; role?: string; institution?: string; page?:string }> }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/login?callbackUrl=/super-admin/users");
   const filters = await searchParams;
   const page=Math.max(1,Number(filters.page)||1),limit=50,offset=(page-1)*limit;
   const [users, institutions, invitations] = await Promise.all([

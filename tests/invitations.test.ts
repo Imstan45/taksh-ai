@@ -28,10 +28,10 @@ describe("invitation lifecycle", () => {
     expect(invitationIsAcceptable("accepted", new Date("2026-07-24T11:00:00Z"), now)).toBe(false);
   });
 
-  it("uses the correct portal destination for each role", () => {
-    expect(invitationDestination("STUDENT")).toBe("/login");
-    expect(invitationDestination("FACULTY")).toBe("/admin/login");
-    expect(invitationDestination("COLLEGE_ADMIN")).toBe("/admin/login");
-    expect(invitationDestination("SUPER_ADMIN")).toBe("/super-admin/login");
+  it("uses the centralized login with a role-aware destination", () => {
+    expect(invitationDestination("STUDENT")).toBe("/login?callbackUrl=%2Fdashboard");
+    expect(invitationDestination("FACULTY")).toBe("/login?callbackUrl=%2Fadmin%2Ffaculty");
+    expect(invitationDestination("COLLEGE_ADMIN")).toBe("/login?callbackUrl=%2Fadmin");
+    expect(invitationDestination("SUPER_ADMIN")).toBe("/login?callbackUrl=%2Fsuper-admin");
   });
 });

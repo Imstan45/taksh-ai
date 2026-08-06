@@ -57,7 +57,7 @@ export function LibraryWorkspace() {
         <p className="mt-2 text-sm text-zinc-500">{asset.topic} → {asset.subtopic}</p>
         <div className="mt-auto pt-6 text-xs text-zinc-600">Updated {new Date(asset.updated_at).toLocaleDateString()}</div>
         <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
-          <Link className="btn-ghost border border-white/10" href="/superadmin/content-factory/review">Preview / edit</Link>
+          {asset.status !== "archived" && <Link className="btn-ghost border border-white/10" href={`/superadmin/content-factory/review?asset=${encodeURIComponent(asset.id)}`}>Preview / edit</Link>}
           {asset.status === "published" && <Link className="btn-ghost gap-2 border border-white/10" href="/super-admin/courses"><Send className="size-3.5" />Assign</Link>}
           {asset.status === "published" && <button className="btn-ghost gap-2 border border-white/10" onClick={() => void archive(asset)}><Archive className="size-3.5" />Archive</button>}
         </div>

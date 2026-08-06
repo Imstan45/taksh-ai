@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { roleCanAccessPath, roleHome, type UserRole } from "@/types/roles";
 
 type Mode = "login" | "signup" | "forgot" | "reset" | "verify";
 const authPaths = new Set(["/login", "/admin/login", "/super-admin/login", "/signup", "/forgot-password", "/forgotpassword", "/reset-password", "/verify-email"]);
@@ -30,7 +31,7 @@ const copy = {
   verify: ["Verify your email", "Securely activating your Taksh AI account."],
 } as const;
 
-export function AuthForm({ mode, portal = "student" }: { mode: Mode; portal?: "student" | "admin" | "super-admin" }) {
+export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const params = useSearchParams();
   const [busy, setBusy] = useState(false);
@@ -43,16 +44,16 @@ export function AuthForm({ mode, portal = "student" }: { mode: Mode; portal?: "s
     const form = new FormData(event.currentTarget);
     try {
       if (mode === "login") {
-        const result = await signIn("credentials", { email: form.get("email"), password: form.get("password"), rememberMe: form.get("rememberMe") === "on", portal, redirect: false });
+        const result = await signIn("credentials", { email: form.get("email"), password: form.get("password"), rememberMe: form.get("rememberMe") === "on", redirect: false });
         if (result?.error) {
-          throw new Error(portal === "super-admin"
-            ? "Access denied. Use a verified Super Admin account."
-            : portal === "admin"
-              ? "Access denied. Use a College Admin or Faculty account."
-              : "Incorrect student credentials, or your email is not verified.");
+          throw new Error("Incorrect credentials, an unverified email, or an inactive account.");
         }
-        const home = portal === "super-admin" ? "/super-admin" : portal === "admin" ? "/admin" : "/dashboard";
-        router.push(safeCallbackUrl(params.get("callbackUrl"), home)); router.refresh(); return;
+        const session = await getSession();
+        const role = session?.user?.role as UserRole | undefined;
+        if (!role) throw new Error("Signed in, but no active account role was found.");
+        const home = roleHome(role);
+        const callback = safeCallbackUrl(params.get("callbackUrl"), home);
+        router.push(roleCanAccessPath(role, callback) ? callback : home); router.refresh(); return;
       }
       if (mode === "reset") {
         const { error } = await createSupabaseBrowserClient().auth.updateUser({ password: String(form.get("password") ?? "") });
@@ -78,9 +79,9 @@ export function AuthForm({ mode, portal = "student" }: { mode: Mode; portal?: "s
   const autoVerify = mode === "verify";
   return (
     <div>
-      <p className="text-sm font-medium text-violet-400">{portal === "super-admin" ? "Taksh AI platform" : portal === "admin" ? "Taksh AI institution portal" : mode === "login" ? "Good to see you" : "Taksh AI account"}</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">{portal === "super-admin" ? "Super Admin sign in" : portal === "admin" ? "Admin & Faculty sign in" : copy[mode][0]}</h1>
-      <p className="mt-3 text-sm leading-6 text-zinc-400">{portal === "super-admin" ? "Restricted access for platform administrators." : portal === "admin" ? "Manage your institution, courses and learners." : copy[mode][1]}</p>
+      <p className="text-sm font-medium text-violet-400">{mode === "login" ? "Taksh AI secure access" : "Taksh AI account"}</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight">{copy[mode][0]}</h1>
+      <p className="mt-3 text-sm leading-6 text-zinc-400">{mode === "login" ? "One sign-in for students, faculty, college administrators and platform administrators." : copy[mode][1]}</p>
       <form className="mt-8 space-y-5" onSubmit={submit}>
         {mode === "signup" && <Field label="Full name" name="name" placeholder="Your name" autoComplete="name" />}
         {["login", "signup", "forgot"].includes(mode) && <Field label="Email address" name="email" type="email" placeholder="you@college.edu" autoComplete="email" />}
@@ -94,11 +95,9 @@ export function AuthForm({ mode, portal = "student" }: { mode: Mode; portal?: "s
         )}
         {mode === "login" && <div className="flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-zinc-400"><input name="rememberMe" type="checkbox" className="accent-violet-600" /> Remember me</label><Link className="text-violet-400 hover:text-violet-300" href="/forgot-password">Forgot password?</Link></div>}
         {message && <p role="status" className={`rounded-xl border px-4 py-3 text-sm ${message.type === "error" ? "border-red-500/20 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"}`}>{message.text}</p>}
-        <button className="btn-primary w-full" disabled={busy} type="submit">{busy && <LoaderCircle className="size-4 animate-spin" />}{autoVerify ? "Verify email" : mode === "login" ? portal === "super-admin" ? "Enter Super Admin" : portal === "admin" ? "Enter workspace" : "Sign in" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Update password"}</button>
+        <button className="btn-primary w-full" disabled={busy} type="submit">{busy && <LoaderCircle className="size-4 animate-spin" />}{autoVerify ? "Verify email" : mode === "login" ? "Sign in" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Update password"}</button>
       </form>
-      {mode === "login" && portal === "student" && <p className="mt-7 text-center text-sm text-zinc-500">New to Taksh AI? <Link className="text-violet-400" href="/signup">Create an account</Link></p>}
-      {mode === "login" && portal === "super-admin" && <p className="mt-7 text-center text-sm"><Link className="text-violet-400" href="/login">Back to student sign in</Link></p>}
-      {mode === "login" && portal === "admin" && <p className="mt-7 text-center text-sm"><Link className="text-violet-400" href="/login">Back to student sign in</Link></p>}
+      {mode === "login" && <p className="mt-7 text-center text-sm text-zinc-500">New student? <Link className="text-violet-400" href="/signup">Create an account</Link></p>}
       {mode === "signup" && <p className="mt-7 text-center text-sm text-zinc-500">Already have an account? <Link className="text-violet-400" href="/login">Sign in</Link></p>}
       {["forgot", "reset"].includes(mode) && <p className="mt-7 text-center text-sm"><Link className="text-violet-400" href="/login">Back to sign in</Link></p>}
     </div>

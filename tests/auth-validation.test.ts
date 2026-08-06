@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loginSchema, passwordSchema, registerSchema } from "@/lib/auth/validation";
 import { createToken, hashToken } from "@/lib/security/tokens";
+import { roleCanAccessPath, roleHome } from "@/types/roles";
 
 describe("authentication validation", () => {
   it("normalizes valid registrations", () => {
@@ -18,5 +19,18 @@ describe("authentication validation", () => {
     expect(token.length).toBeGreaterThanOrEqual(32);
     expect(hashToken(token)).toBe(hashToken(token));
     expect(hashToken(token)).not.toBe(token);
+  });
+  it("routes each database role to its own workspace", () => {
+    expect(roleHome("STUDENT")).toBe("/dashboard");
+    expect(roleHome("FACULTY")).toBe("/admin/faculty");
+    expect(roleHome("COLLEGE_ADMIN")).toBe("/admin");
+    expect(roleHome("SUPER_ADMIN")).toBe("/super-admin");
+  });
+  it("does not allow a callback URL to cross role boundaries", () => {
+    expect(roleCanAccessPath("SUPER_ADMIN", "/superadmin/content-factory")).toBe(true);
+    expect(roleCanAccessPath("FACULTY", "/admin/faculty/learners")).toBe(true);
+    expect(roleCanAccessPath("STUDENT", "/dashboard")).toBe(true);
+    expect(roleCanAccessPath("STUDENT", "/super-admin")).toBe(false);
+    expect(roleCanAccessPath("COLLEGE_ADMIN", "/student/courses")).toBe(false);
   });
 });
