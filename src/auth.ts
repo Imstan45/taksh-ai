@@ -42,6 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role,
           accountStatus: roleRecord.account_status,
           authorizationVersion: roleRecord.authorization_version,
+          mustChangePassword: data.user.user_metadata.must_change_password === true,
           rememberMe: parsed.data.rememberMe,
         };
       },
@@ -55,6 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.rememberMe = user.rememberMe;
         token.accountStatus = user.accountStatus;
         token.authorizationVersion = user.authorizationVersion;
+        token.mustChangePassword = user.mustChangePassword;
       } else if (token.id) {
         const { data } = await createSupabaseAdminClient()
           .from("user_roles")
@@ -76,11 +78,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.role) session.user.role = token.role;
       session.user.accountStatus = token.accountStatus;
       session.user.authorizationVersion = token.authorizationVersion;
+      session.user.mustChangePassword = token.mustChangePassword;
       return session;
     },
     authorized({ auth: session, request }) {
       const path = request.nextUrl.pathname;
       if (session?.user && session.user.accountStatus !== "active") return false;
+      if (path === "/change-password") {
+        if (!session?.user) return Response.redirect(new URL("/login?callbackUrl=/change-password", request.nextUrl));
+        if (!session.user.mustChangePassword) return Response.redirect(new URL(roleHome(session.user.role), request.nextUrl));
+        return true;
+      }
       if (path === "/admin/login" || path === "/super-admin/login") {
         return Response.redirect(new URL(session?.user ? roleHome(session.user.role) : "/login", request.nextUrl));
       }
@@ -90,6 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         loginUrl.searchParams.set("callbackUrl", path);
         return Response.redirect(loginUrl);
       }
+      if (session.user.mustChangePassword) return Response.redirect(new URL("/change-password", request.nextUrl));
       if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
       return session.user.role === "STUDENT";

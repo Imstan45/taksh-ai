@@ -33,4 +33,8 @@ describe("authentication validation", () => {
     expect(roleCanAccessPath("STUDENT", "/super-admin")).toBe(false);
     expect(roleCanAccessPath("COLLEGE_ADMIN", "/student/courses")).toBe(false);
   });
+  it("requires students to replace the shared onboarding password with a strong password", () => {
+    expect(passwordSchema.safeParse("welcome2026").success).toBe(false);
+    expect(passwordSchema.safeParse("Private!Pass2026").success).toBe(true);
+  });
 });

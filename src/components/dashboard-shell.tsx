@@ -16,6 +16,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
+    { href: "/admin/students/onboard", label: "Add students" },
     { href: "/admin/faculty/learners", label: "Learners" },
     { href: "/admin/faculty/content", label: "Teaching content" },
     { href: "/admin/faculty/assessments", label: "Assessments" },
@@ -28,6 +29,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/academics", label: "Academics" },
     { href: "/admin/people", label: "People" },
     { href: "/admin/students", label: "Students" },
+    { href: "/admin/students/onboard", label: "Add students" },
     { href: "/admin/courses", label: "Courses" },
     { href: "/admin/reports", label: "Reports" },
   ],

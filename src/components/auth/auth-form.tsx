@@ -51,6 +51,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         const session = await getSession();
         const role = session?.user?.role as UserRole | undefined;
         if (!role) throw new Error("Signed in, but no active account role was found.");
+        if (session?.user.mustChangePassword) {
+          router.push("/change-password"); router.refresh(); return;
+        }
         const home = roleHome(role);
         const callback = safeCallbackUrl(params.get("callbackUrl"), home);
         router.push(roleCanAccessPath(role, callback) ? callback : home); router.refresh(); return;
