@@ -43,10 +43,14 @@ export async function POST(request: Request) {
           await tx.$executeRaw`
             INSERT INTO public.user_roles(user_id,role,institution_id,account_status)
             VALUES(${data.user.id}::uuid,'STUDENT',${institutionId}::uuid,'active')
+            ON CONFLICT(user_id) DO UPDATE SET
+              role='STUDENT',institution_id=excluded.institution_id,account_status='active',
+              authorization_version=user_roles.authorization_version+1,updated_at=now()
           `;
           await tx.$executeRaw`
             INSERT INTO public.user_academic_memberships(user_id,institution_id,membership_type,active)
             VALUES(${data.user.id}::uuid,${institutionId}::uuid,'STUDENT',true)
+            ON CONFLICT(user_id,institution_id,membership_type) DO UPDATE SET active=true,updated_at=now()
           `;
           await tx.$executeRaw`
             INSERT INTO public.audit_logs(actor_id,institution_id,action,target_type,target_id,new_values)
