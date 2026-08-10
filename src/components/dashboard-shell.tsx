@@ -17,7 +17,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
     { href: "/admin/students/onboard", label: "Add students" },
-    { href: "/admin/faculty/learners", label: "Learners" },
+    { href: "/admin/faculty/learners", label: "Students" },
     { href: "/admin/faculty/content", label: "Teaching content" },
     { href: "/admin/faculty/assessments", label: "Assessments" },
     { href: "/admin/faculty/reports", label: "Reports" },
