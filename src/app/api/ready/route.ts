@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { environmentReadiness } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
-const requiredSchemaVersion = "202607240009";
+const requiredSchemaVersion = "202608110001";
 
 export async function GET() {
   const environment = environmentReadiness();

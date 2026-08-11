@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const requiredSchemaVersion = "202608110001";
+
 const requiredTables = [
   "schema_migrations",
   "user_roles",
@@ -35,7 +37,7 @@ export async function GET() {
     database = true;
     if (installed.has("schema_migrations")) {
       const versions = await prisma.$queryRaw<Array<{ version: string }>>`
-        SELECT version FROM public.schema_migrations ORDER BY installed_at DESC LIMIT 1
+        SELECT version FROM public.schema_migrations ORDER BY version DESC LIMIT 1
       `;
       schemaVersion = versions[0]?.version ?? null;
     }
@@ -43,17 +45,19 @@ export async function GET() {
     database = false;
   }
 
-  const ready = environment.valid && database && missingTables.length === 0;
+  const schemaCurrent = schemaVersion === requiredSchemaVersion;
+  const ready = environment.valid && database && missingTables.length === 0 && schemaCurrent;
   return Response.json({
     version: environment.deploymentVersion,
     status: ready ? "ready" : "degraded",
     checks: {
       environment: environment.valid,
       database,
-      schema: missingTables.length === 0,
+      schema: missingTables.length === 0 && schemaCurrent,
       supabase: environment.supabase,
     },
     schemaVersion,
+    requiredSchemaVersion,
     missingConfiguration: environment.missing,
     missingTables,
   }, { status: ready ? 200 : 503 });
