@@ -15,4 +15,4 @@ export function parseCsv(text: string) {
   return rows;
 }
 
-export const studentCsvHeaders = ["first name","last name","email","department","batch","roll number"];
+export const studentCsvHeaders = ["name","email","student_id","department","academic_year","semester","section"];

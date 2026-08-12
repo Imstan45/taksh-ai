@@ -35,9 +35,20 @@ export default async function Page() {
   `;
 
   const profiling = rows[0]?.profile_json?.profiling;
-  const [courses, game] = await Promise.all([
+  const [courses, game, dueActivities, recentResults] = await Promise.all([
     getStudentLearningOverview(session.user.id).catch(() => []),
     getGamification(session.user.id).catch(() => ({ xp: 0, level: 1, streak: 0, completed: 0 })),
+    prisma.$queryRaw<Array<{id:string;title:string;activity_type:string;course:string;due_at:Date|null}>>`
+      SELECT DISTINCT activity.id,activity.title,activity.activity_type,activity.course,activity.due_at
+      FROM public.learning_activities activity LEFT JOIN public.user_academic_memberships membership ON membership.user_id=${session.user.id}::uuid AND membership.active
+      LEFT JOIN public.activity_submissions submission ON submission.activity_id=activity.id AND submission.student_id=${session.user.id}::uuid
+      WHERE activity.status='published' AND (activity.student_id=${session.user.id}::uuid OR activity.batch_id=membership.batch_id)
+        AND submission.id IS NULL ORDER BY activity.due_at NULLS LAST LIMIT 5`.catch(()=>[]),
+    prisma.$queryRaw<Array<{id:string;title:string;marks:number;max_marks:number;grade:string|null}>>`
+      SELECT activity.id,activity.title,submission.marks::float marks,activity.max_marks::float max_marks,submission.grade
+      FROM public.activity_submissions submission JOIN public.learning_activities activity ON activity.id=submission.activity_id
+      WHERE submission.student_id=${session.user.id}::uuid AND submission.status='graded'
+      ORDER BY submission.graded_at DESC LIMIT 4`.catch(()=>[]),
   ]);
   const resume = courses.find((course) => course.lastSlug) ?? courses[0];
 
@@ -93,6 +104,8 @@ export default async function Page() {
             <p className="eyebrow">Continue learning</p>
             {resume ? <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl font-semibold">{resume.lastSubtopic ?? resume.course}</h2><p className="mt-2 text-sm text-zinc-400">{resume.course} · {resume.progress}% complete</p><div className="course-progress mt-4 max-w-xl"><span style={{ width: `${resume.progress}%` }} /></div></div><Link className="btn-primary" href={resume.lastSlug ? `/student/learn/${resume.lastSlug}` : `/student/courses/${resume.slug}`}><BookOpen className="size-4" /> Continue</Link></div> : <div className="mt-5"><h2 className="text-xl font-semibold">Your learning path is being prepared.</h2><p className="mt-2 text-sm text-zinc-400">Assigned published courses will appear here.</p></div>}
           </section>
+          <section className="glass-card"><div className="flex items-center justify-between"><h3 className="text-xl font-semibold">Due soon</h3><Link className="text-sm text-violet-300" href="/student/activities">View all</Link></div><div className="mt-4 space-y-3">{dueActivities.length?dueActivities.map(item=><Link className="block rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><b>{item.title}</b><p className="mt-1 text-xs text-zinc-500">{item.activity_type} · {item.course} · {item.due_at?item.due_at.toLocaleString():"No deadline"}</p></Link>):<p className="text-sm text-zinc-400">No outstanding activities.</p>}</div></section>
+          <section className="glass-card"><h3 className="text-xl font-semibold">Recent results</h3><div className="mt-4 space-y-3">{recentResults.length?recentResults.map(item=><Link className="flex justify-between rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><span>{item.title}</span><b>{item.marks}/{item.max_marks}{item.grade?` · ${item.grade}`:""}</b></Link>):<p className="text-sm text-zinc-400">Graded work will appear here.</p>}</div></section>
         </div>
       )}
     </DashboardShell>

@@ -21,7 +21,7 @@ type QuestionRow = {
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user || session.user.role !== "STUDENT" || session.user.accountStatus !== "active") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -53,9 +53,15 @@ export async function GET() {
     LIMIT 30
   `;
 
+  const attemptId = crypto.randomUUID();
+  const startedAt = new Date();
+  await prisma.$executeRaw`
+    INSERT INTO public.aptitude_assessment_sessions(id,student_id,question_ids,started_at,expires_at)
+    VALUES(${attemptId}::uuid,${session.user.id}::uuid,${rows.map(row=>row.id)}::uuid[],${startedAt},${new Date(startedAt.getTime()+30*60*1000)})
+  `;
   return NextResponse.json({
-    attemptTicket: createAssessmentTicket(session.user.id, rows.map((row) => row.id), mainEnvironment().AUTH_SECRET, Date.now() + 30 * 60 * 1000),
-    startedAt: new Date().toISOString(),
+    attemptTicket: createAssessmentTicket(session.user.id, rows.map((row) => row.id), mainEnvironment().AUTH_SECRET, startedAt.getTime() + 30 * 60 * 1000, attemptId),
+    startedAt: startedAt.toISOString(),
     durationMinutes: 30,
     count: rows.length,
     questions: rows.map((row, index) => ({

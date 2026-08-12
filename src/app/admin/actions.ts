@@ -64,30 +64,76 @@ export async function saveAcademicYear(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function saveSemester(formData: FormData) {
+  const { institutionId } = await requireCollegeAdmin();
+  const name = clean(formData.get("name"));
+  const academicYearId = clean(formData.get("academicYearId"));
+  const sequenceNumber = Number(clean(formData.get("sequenceNumber")));
+  const startsOn = clean(formData.get("startsOn"));
+  const endsOn = clean(formData.get("endsOn"));
+  if (!name || !academicYearId || !Number.isInteger(sequenceNumber) || sequenceNumber < 1) {
+    throw new Error("Semester name, academic year and sequence are required.");
+  }
+  if (startsOn && endsOn && new Date(endsOn) <= new Date(startsOn)) {
+    throw new Error("Semester end date must be after its start date.");
+  }
+  const year = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM public.academic_years
+    WHERE id=${academicYearId}::uuid AND institution_id=${institutionId}::uuid AND status='active'
+  `;
+  if (!year[0]) throw new Error("Academic year is outside your institution or inactive.");
+  await prisma.$executeRaw`
+    INSERT INTO public.semesters(institution_id,academic_year_id,name,sequence_number,starts_on,ends_on)
+    VALUES(${institutionId}::uuid,${academicYearId}::uuid,${name},${sequenceNumber},
+      ${startsOn || null}::date,${endsOn || null}::date)
+    ON CONFLICT(academic_year_id,sequence_number) DO UPDATE SET name=excluded.name,
+      starts_on=excluded.starts_on,ends_on=excluded.ends_on,status='active',updated_at=now()
+  `;
+  revalidatePath("/admin/academics");
+  revalidatePath("/admin");
+}
+
+export async function setSemesterStatus(formData: FormData) {
+  const { institutionId } = await requireCollegeAdmin();
+  const id = clean(formData.get("id"));
+  const status = clean(formData.get("status"));
+  if (!['active', 'inactive'].includes(status)) throw new Error("Invalid status.");
+  const changed = await prisma.$executeRaw`
+    UPDATE public.semesters SET status=${status},updated_at=now()
+    WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid
+  `;
+  if (!changed) throw new Error("Semester not found in your institution.");
+  revalidatePath("/admin/academics");
+}
+
 export async function saveBatch(formData: FormData) {
   const { institutionId } = await requireCollegeAdmin();
   const id = clean(formData.get("id"));
   const name = clean(formData.get("name"));
   const departmentId = clean(formData.get("departmentId"));
   const academicYearId = clean(formData.get("academicYearId"));
+  const semesterId = clean(formData.get("semesterId"));
   const scope = await prisma.$queryRaw<Array<{ year_name: string }>>`
     SELECT year.name AS year_name FROM public.academic_years year
+    JOIN public.semesters semester ON semester.academic_year_id=year.id
     JOIN public.departments department ON department.institution_id=year.institution_id
-    WHERE year.id=${academicYearId}::uuid AND department.id=${departmentId}::uuid
-      AND year.institution_id=${institutionId}::uuid
+    WHERE year.id=${academicYearId}::uuid AND semester.id=${semesterId}::uuid
+      AND department.id=${departmentId}::uuid AND year.institution_id=${institutionId}::uuid
+      AND year.status='active' AND semester.status='active' AND department.status='active'
   `;
-  if (!name || !scope[0]) throw new Error("Batch, department and academic year must belong to your institution.");
+  if (!name || !scope[0]) throw new Error("Section/batch, department, academic year and semester must belong to your institution.");
   if (id) {
     const changed = await prisma.$executeRaw`
       UPDATE public.academic_batches SET name=${name},department_id=${departmentId}::uuid,
-        academic_year_id=${academicYearId}::uuid,academic_year=${scope[0].year_name},updated_at=now()
+        academic_year_id=${academicYearId}::uuid,semester_id=${semesterId}::uuid,
+        academic_year=${scope[0].year_name},updated_at=now()
       WHERE id=${id}::uuid AND institution_id=${institutionId}::uuid
     `;
     if (!changed) throw new Error("Batch not found in your institution.");
   } else {
     await prisma.$executeRaw`
-      INSERT INTO public.academic_batches(institution_id,department_id,academic_year_id,name,academic_year)
-      VALUES (${institutionId}::uuid,${departmentId}::uuid,${academicYearId}::uuid,${name},${scope[0].year_name})
+      INSERT INTO public.academic_batches(institution_id,department_id,academic_year_id,semester_id,name,academic_year)
+      VALUES (${institutionId}::uuid,${departmentId}::uuid,${academicYearId}::uuid,${semesterId}::uuid,${name},${scope[0].year_name})
     `;
   }
   revalidatePath("/admin/academics");
@@ -138,6 +184,7 @@ export async function updateInstitutionMember(formData: FormData) {
   const status = clean(formData.get("status"));
   const departmentId = clean(formData.get("departmentId"));
   const batchId = clean(formData.get("batchId"));
+  const course = clean(formData.get("course"));
   if (status && !["active", "suspended"].includes(status)) throw new Error("Invalid status.");
   const target = await prisma.$queryRaw<Array<{ role: string }>>`
     SELECT role::text FROM public.user_roles WHERE user_id=${userId}::uuid
@@ -149,8 +196,16 @@ export async function updateInstitutionMember(formData: FormData) {
     if (!valid[0]) throw new Error("Department is outside your institution.");
   }
   if (batchId) {
-    const valid = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM public.academic_batches WHERE id=${batchId}::uuid AND institution_id=${institutionId}::uuid AND (${departmentId}='' OR department_id=${departmentId || null}::uuid)`;
+    const valid = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM public.academic_batches WHERE id=${batchId}::uuid AND institution_id=${institutionId}::uuid AND status='active' AND (${departmentId}='' OR department_id=${departmentId || null}::uuid)`;
     if (!valid[0]) throw new Error("Batch is outside your institution.");
+  }
+  if (course) {
+    if (target[0].role !== "FACULTY") throw new Error("Courses can only be mapped to faculty here.");
+    const valid = await prisma.$queryRaw<Array<{ course: string }>>`
+      SELECT course FROM public.institution_course_access
+      WHERE institution_id=${institutionId}::uuid AND course=${course} AND active
+    `;
+    if (!valid[0]) throw new Error("Course is not available to your institution.");
   }
   await prisma.$transaction(async (tx) => {
     if (status) await tx.$executeRaw`UPDATE public.user_roles SET account_status=${status},authorization_version=authorization_version+1,updated_at=now() WHERE user_id=${userId}::uuid AND institution_id=${institutionId}::uuid`;
@@ -159,6 +214,15 @@ export async function updateInstitutionMember(formData: FormData) {
       VALUES(${userId}::uuid,${institutionId}::uuid,${departmentId || null}::uuid,${batchId || null}::uuid,${target[0].role},true)
       ON CONFLICT(user_id,institution_id,membership_type) DO UPDATE SET department_id=excluded.department_id,batch_id=excluded.batch_id,active=true,updated_at=now()
     `;
+    if (target[0].role === "FACULTY") {
+      await tx.$executeRaw`UPDATE public.faculty_assignments SET active=false
+        WHERE faculty_id=${userId}::uuid AND institution_id=${institutionId}::uuid AND active`;
+      await tx.$executeRaw`
+        INSERT INTO public.faculty_assignments(faculty_id,institution_id,department_id,batch_id,course,active)
+        VALUES(${userId}::uuid,${institutionId}::uuid,${departmentId || null}::uuid,
+          ${batchId || null}::uuid,${course || null},true)
+      `;
+    }
   });
   revalidatePath("/admin/people");
 }
@@ -169,10 +233,12 @@ export async function assignInstitutionCourse(formData: FormData) {
   const studentId = clean(formData.get("studentId"));
   const batchId = clean(formData.get("batchId"));
   const departmentId = clean(formData.get("departmentId"));
+  const academicYearId = clean(formData.get("academicYearId"));
+  const semesterId = clean(formData.get("semesterId"));
   const startsAt = clean(formData.get("startsAt"));
   const dueAt = clean(formData.get("dueAt"));
-  const targets = [studentId, batchId, departmentId].filter(Boolean);
-  if (targets.length !== 1) throw new Error("Choose exactly one student, batch, or department.");
+  const targets = [studentId, batchId, departmentId, academicYearId, semesterId].filter(Boolean);
+  if (targets.length !== 1) throw new Error("Choose exactly one student, section/batch, semester, academic year, or department.");
   if (startsAt && dueAt && new Date(dueAt) <= new Date(startsAt)) throw new Error("Due date must be after the start date.");
   const grant = await prisma.$queryRaw<Array<{ course: string }>>`
     SELECT course FROM public.institution_course_access WHERE institution_id=${institutionId}::uuid AND course=${course} AND active
@@ -183,7 +249,9 @@ export async function assignInstitutionCourse(formData: FormData) {
     LEFT JOIN public.user_academic_memberships membership ON membership.user_id=role.user_id AND membership.active
     WHERE role.institution_id=${institutionId}::uuid AND role.role='STUDENT' AND role.account_status='active'
       AND ((${studentId}<>'' AND role.user_id=${studentId || null}::uuid) OR (${batchId}<>'' AND membership.batch_id=${batchId || null}::uuid)
-        OR (${departmentId}<>'' AND membership.department_id=${departmentId || null}::uuid))
+        OR (${departmentId}<>'' AND membership.department_id=${departmentId || null}::uuid)
+        OR (${academicYearId}<>'' AND EXISTS(SELECT 1 FROM public.academic_batches batch WHERE batch.id=membership.batch_id AND batch.academic_year_id=${academicYearId || null}::uuid AND batch.institution_id=${institutionId}::uuid))
+        OR (${semesterId}<>'' AND EXISTS(SELECT 1 FROM public.academic_batches batch WHERE batch.id=membership.batch_id AND batch.semester_id=${semesterId || null}::uuid AND batch.institution_id=${institutionId}::uuid)))
   `;
   if (!students.length) throw new Error("No eligible students were found.");
   await prisma.$transaction(students.map((student) => prisma.$executeRaw`
