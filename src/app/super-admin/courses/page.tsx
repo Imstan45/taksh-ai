@@ -7,7 +7,7 @@ import { CourseAssignmentForms } from "@/components/super-admin/course-assignmen
 import { assignStudentCourse, grantInstitutionCourse, revokeStudentCourse } from "../actions";
 
 export default async function CourseOperationsPage() {
-  const session=await auth(); if(!session?.user||session.user.role!=="SUPER_ADMIN")redirect("/super-admin/login");
+  const session=await auth(); if(!session?.user||session.user.role!=="SUPER_ADMIN")redirect("/login?callbackUrl=/super-admin/courses");
   const [courses,institutions,students,assignments]=await Promise.all([
     prisma.$queryRaw<Array<{course:string}>>`SELECT DISTINCT course FROM public.taksh_content_assets WHERE status='published' ORDER BY course`,
     prisma.$queryRaw<Array<{id:string;name:string;institution_type:"school"|"college"}>>`SELECT id,name,institution_type FROM public.institutions WHERE status='active' ORDER BY name`,

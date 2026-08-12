@@ -16,15 +16,34 @@ export function SettingsWorkspace() {
   });
   const [saved, setSaved] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingError, setLoadingError] = useState("");
   useEffect(() => {
-    void fetch("/api/content-factory/config").then((r) => r.json()).then(setConfig);
-    void fetch("/api/content-factory/settings").then((r) => r.json()).then((data) => data.settings && setSettings(data.settings));
+    async function load() {
+      try {
+        const [configResponse, settingsResponse] = await Promise.all([
+          fetch("/api/content-factory/config"), fetch("/api/content-factory/settings"),
+        ]);
+        const configData = await configResponse.json();
+        const settingsData = await settingsResponse.json();
+        if (!configResponse.ok) throw new Error(configData.error || "Unable to check Content Factory configuration.");
+        if (!settingsResponse.ok) throw new Error(settingsData.error || "Unable to load generation defaults.");
+        setConfig(configData);
+        if (settingsData.settings) setSettings((current) => ({ ...current, ...settingsData.settings }));
+      } catch (error) {
+        setLoadingError(error instanceof Error ? error.message : "Unable to load Content Factory settings.");
+      }
+    }
+    void load();
   }, []);
   async function test() {
     setTesting(true);
-    const response = await fetch("/api/content-factory/config/test", { method: "POST" });
-    setResult(await response.json());
-    setTesting(false);
+    try {
+      const response = await fetch("/api/content-factory/config/test", { method: "POST" });
+      const data = await response.json();
+      setResult({ ...data, connected: response.ok && data.connected });
+    } catch {
+      setResult({ connected: false, model: config.model || "Gemini", responseTime: 0, message: "Connection request failed. Check the deployment and try again." });
+    } finally { setTesting(false); }
   }
   async function saveSettings() {
     setSaving(true);
@@ -35,7 +54,9 @@ export function SettingsWorkspace() {
     } catch { setSaved("Settings could not be saved. Please try again."); }
     finally { setSaving(false); }
   }
-  return <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+  return <div className="space-y-5">
+    {loadingError && <div role="alert" className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{loadingError}</div>}
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
     <section className="glass-card">
       <div className="flex items-start gap-4"><div className="rounded-xl bg-violet-500/15 p-3"><ShieldCheck className="size-6 text-violet-300" /></div><div><h3 className="text-xl font-semibold">Gemini Integration</h3><p className="mt-1 text-sm text-zinc-500">Secure server-side generation through the Vercel environment.</p></div></div>
       <dl className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -59,6 +80,7 @@ export function SettingsWorkspace() {
       <button className="btn-primary w-full" disabled={saving} onClick={() => void saveSettings()}>{saving && <LoaderCircle className="size-4 animate-spin" />}{saving ? "Saving defaults…" : "Save defaults"}</button>
       {saved && <p className="text-xs text-violet-200">{saved}</p>}
     </aside>
+    </div>
   </div>;
 }
 

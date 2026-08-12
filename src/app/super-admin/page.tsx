@@ -6,7 +6,7 @@ import { BookOpenCheck, Building2, ShieldCheck, Sparkles, Users } from "lucide-r
 import { prisma } from "@/lib/prisma";
 export default async function Page() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/login?callbackUrl=/super-admin");
   const metrics=await prisma.$queryRaw<Array<{institutions:bigint;active_institutions:bigint;students:bigint;faculty:bigint;published_lessons:bigint;attempts:bigint;assignments:bigint}>>`SELECT
     (SELECT count(*) FROM public.institutions)::bigint institutions,
     (SELECT count(*) FROM public.institutions WHERE status='active')::bigint active_institutions,

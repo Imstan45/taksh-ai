@@ -7,7 +7,7 @@ export default function AdminError({ reset }: { error: Error & { digest?: string
     <section className="glass-card max-w-lg text-center">
       <h1 className="text-2xl font-semibold">The admin request could not be completed</h1>
       <p className="mt-3 text-zinc-400">Your session may have expired, your institution access may have changed, or the requested operation failed.</p>
-      <div className="mt-6 flex justify-center gap-3"><button className="btn-primary" onClick={reset}>Try again</button><Link className="btn-ghost" href="/admin/login">Return to admin login</Link></div>
+      <div className="mt-6 flex justify-center gap-3"><button className="btn-primary" onClick={reset}>Try again</button><Link className="btn-ghost" href="/login">Return to sign in</Link></div>
     </section>
   </main>;
 }

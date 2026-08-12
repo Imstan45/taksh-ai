@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 describe("college institutional structure", () => {
-  const migration = readFileSync("supabase/migrations/202608110001_institutional_semesters.sql", "utf8");
+  const migration = readFileSync("supabase/migrations/202608130000_institutional_semesters.sql", "utf8");
   const actions = readFileSync("src/app/admin/actions.ts", "utf8");
   const academics = readFileSync("src/app/admin/academics/page.tsx", "utf8");
 

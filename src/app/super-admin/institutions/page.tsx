@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default async function InstitutionsPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/login?callbackUrl=/super-admin/institutions");
   const institutions = await prisma.$queryRaw<Array<{ id:string;name:string;slug:string;status:string;institution_type:"school"|"college" }>>`
     SELECT id,name,slug,status,institution_type FROM public.institutions ORDER BY name`;
   return <DashboardShell {...session.user}><div className="grid gap-6 lg:grid-cols-[360px_1fr]">

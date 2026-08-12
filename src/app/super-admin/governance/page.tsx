@@ -11,7 +11,7 @@ const permissions = [
 
 export default async function GovernancePage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/super-admin/login");
+  if (!session?.user || session.user.role !== "SUPER_ADMIN") redirect("/login?callbackUrl=/super-admin/governance");
   return (
     <DashboardShell {...session.user}>
       <section className="glass-card">

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, RefreshCw, Save, Send, X } from "lucide-react";
 
 type Asset = {
@@ -11,6 +12,8 @@ type Asset = {
 };
 
 export function ReviewWorkspace() {
+  const searchParams = useSearchParams();
+  const requestedAsset = searchParams.get("asset");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [index, setIndex] = useState(0);
   const [draft, setDraft] = useState<Asset | null>(null);
@@ -25,8 +28,16 @@ export function ReviewWorkspace() {
     setAssets((data.assets || []).filter((asset: Asset) => asset.status !== "archived"));
   }
   useEffect(() => { void load().catch((error) => setMessage(error.message)); }, []);
-  const queue = useMemo(() => assets.filter((asset) => status === "all" ? ["draft","in_review","approved"].includes(asset.status) : asset.status === status), [assets, status]);
+  const queue = useMemo(() => requestedAsset
+    ? assets.filter((asset) => asset.id === requestedAsset)
+    : assets.filter((asset) => status === "all" ? ["draft","in_review","approved"].includes(asset.status) : asset.status === status),
+  [assets, requestedAsset, status]);
   const current = queue[index] || null;
+  useEffect(() => {
+    if (!requestedAsset) return;
+    const requestedIndex = queue.findIndex((asset) => asset.id === requestedAsset);
+    if (requestedIndex >= 0 && requestedIndex !== index) setIndex(requestedIndex);
+  }, [index, queue, requestedAsset]);
   useEffect(() => { setDraft(current ? structuredClone(current) : null); }, [current]);
 
   function update(path: string[], value: unknown) {
