@@ -9,13 +9,15 @@ export default async function StudentActivities({ searchParams }: { searchParams
   const session=await auth(); if(!session?.user||session.user.role!=="STUDENT")redirect("/login");
   const query=await searchParams; const view=(['todo','submitted','graded','all'].includes(query.view??'')?query.view:'todo') as Filter; const type=query.type??'';
   const rows=await prisma.$queryRaw<Array<{ id:string;title:string;description:string;activity_type:string;course:string;due_at:Date|null;max_marks:number;faculty_email:string;status:string;submission_status:string|null;marks:number|null;grade:string|null;overdue:boolean }>>`
-    SELECT DISTINCT activity.id,activity.title,activity.description,activity.activity_type,activity.course,activity.due_at,
+    SELECT activity.id,activity.title,activity.description,activity.activity_type,activity.course,activity.due_at,
       activity.max_marks::float max_marks,faculty.email faculty_email,activity.status,submission.status submission_status,
       submission.marks::float marks,submission.grade,(activity.due_at<now() AND submission.id IS NULL) overdue
     FROM public.learning_activities activity JOIN auth.users faculty ON faculty.id=activity.faculty_id
-    LEFT JOIN public.user_academic_memberships membership ON membership.user_id=${session.user.id}::uuid AND membership.active
     LEFT JOIN public.activity_submissions submission ON submission.activity_id=activity.id AND submission.student_id=${session.user.id}::uuid
-    WHERE activity.status IN ('published','closed') AND (activity.student_id=${session.user.id}::uuid OR activity.batch_id=membership.batch_id)
+    WHERE activity.status IN ('published','closed') AND (activity.student_id=${session.user.id}::uuid OR EXISTS (
+      SELECT 1 FROM public.user_academic_memberships membership
+      WHERE membership.user_id=${session.user.id}::uuid AND membership.active AND membership.batch_id=activity.batch_id
+    ))
       AND (${type}='' OR activity.activity_type=${type})
       AND (${view}='all' OR (${view}='todo' AND submission.status IS NULL) OR (${view}='submitted' AND submission.status IN ('submitted','late','returned')) OR (${view}='graded' AND submission.status='graded'))
     ORDER BY (activity.due_at IS NULL),activity.due_at,activity.created_at DESC`;
