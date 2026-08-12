@@ -3,8 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export type StudentAnswer = { questionId: string; selectedAnswer?: string };
 export type QuestionKey = { id: string; correctAnswer: string; explanation: string | null; points?: number };
 
-export function createAssessmentTicket(studentId: string, questionIds: string[], secret: string, expiresAt: number) {
-  const payload = Buffer.from(JSON.stringify({ studentId, questionIds, expiresAt })).toString("base64url");
+export function createAssessmentTicket(studentId: string, questionIds: string[], secret: string, expiresAt: number, attemptId = crypto.randomUUID()) {
+  const payload = Buffer.from(JSON.stringify({ studentId, questionIds, expiresAt, attemptId })).toString("base64url");
   const signature = createHmac("sha256", secret).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -15,8 +15,8 @@ export function verifyAssessmentTicket(ticket: string, studentId: string, secret
   const expected = createHmac("sha256", secret).update(payload).digest();
   const supplied = Buffer.from(signature, "base64url");
   if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
-  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as { studentId: string; questionIds: string[]; expiresAt: number };
-  if (parsed.studentId !== studentId || parsed.expiresAt < now || !Array.isArray(parsed.questionIds)) return null;
+  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString()) as { studentId: string; questionIds: string[]; expiresAt: number; attemptId?: string };
+  if (parsed.studentId !== studentId || parsed.expiresAt < now || !Array.isArray(parsed.questionIds) || !parsed.attemptId) return null;
   return parsed;
 }
 

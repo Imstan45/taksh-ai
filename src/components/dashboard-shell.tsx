@@ -8,18 +8,22 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   STUDENT: [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/student/courses", label: "My courses" },
+    { href: "/student/activities", label: "Activities" },
     { href: "/continue-learning", label: "Continue learning" },
     { href: "/learning-style", label: "Learning style" },
     { href: "/assessment", label: "Assessment" },
     { href: "/student/assessments", label: "Assigned assessments" },
     { href: "/student/feedback", label: "Feedback" },
+    { href: "/notifications", label: "Notifications" },
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
     { href: "/admin/faculty/learners", label: "Learners" },
+    { href: "/admin/faculty/activities", label: "Activities" },
     { href: "/admin/faculty/content", label: "Teaching content" },
     { href: "/admin/faculty/assessments", label: "Assessments" },
     { href: "/admin/faculty/reports", label: "Reports" },
+    { href: "/notifications", label: "Notifications" },
   ],
   COLLEGE_ADMIN: [
     { href: "/admin", label: "College administration" },
@@ -30,6 +34,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/students", label: "Students" },
     { href: "/admin/courses", label: "Courses" },
     { href: "/admin/reports", label: "Reports" },
+    { href: "/notifications", label: "Notifications" },
   ],
   SUPER_ADMIN: [
     { href: "/super-admin", label: "Platform dashboard" },

@@ -6,11 +6,13 @@ import { assignInstitutionCourse, revokeInstitutionCourse } from "../actions";
 
 export default async function CoursesPage() {
   const { session, institutionId } = await requireCollegeAdmin();
-  const [courses, students, batches, departments, assignments] = await Promise.all([
+  const [courses, students, batches, departments, years, semesters, assignments] = await Promise.all([
     prisma.$queryRaw<Array<{ course: string }>>`SELECT course FROM public.institution_course_access WHERE institution_id=${institutionId}::uuid AND active ORDER BY course`,
     prisma.$queryRaw<Array<{ user_id: string; email: string }>>`SELECT role.user_id,user_account.email FROM public.user_roles role JOIN auth.users user_account ON user_account.id=role.user_id WHERE role.institution_id=${institutionId}::uuid AND role.role='STUDENT' AND role.account_status='active' ORDER BY user_account.email`,
     prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id,name FROM public.academic_batches WHERE institution_id=${institutionId}::uuid AND status='active' ORDER BY name`,
     prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id,name FROM public.departments WHERE institution_id=${institutionId}::uuid AND status='active' ORDER BY name`,
+    prisma.$queryRaw<Array<{ id: string; name: string }>>`SELECT id,name FROM public.academic_years WHERE institution_id=${institutionId}::uuid AND status='active' ORDER BY starts_on DESC`,
+    prisma.$queryRaw<Array<{ id: string; name: string; year_name: string }>>`SELECT semester.id,semester.name,year.name year_name FROM public.semesters semester JOIN public.academic_years year ON year.id=semester.academic_year_id WHERE semester.institution_id=${institutionId}::uuid AND semester.status='active' ORDER BY year.starts_on DESC,semester.sequence_number`,
     prisma.$queryRaw<Array<{ id: string; email: string; course: string; active: boolean; due_at: Date | null }>>`SELECT assignment.id,user_account.email,assignment.course,assignment.active,assignment.due_at FROM public.student_course_assignments assignment JOIN auth.users user_account ON user_account.id=assignment.student_id WHERE assignment.institution_id=${institutionId}::uuid ORDER BY assignment.assigned_at DESC LIMIT 100`,
   ]);
   return <DashboardShell {...session.user}>
@@ -20,6 +22,8 @@ export default async function CoursesPage() {
       <select className="field" name="studentId"><option value="">Individual student</option>{students.map(item=><option value={item.user_id} key={item.user_id}>{item.email}</option>)}</select>
       <select className="field" name="batchId"><option value="">Or entire batch</option>{batches.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select>
       <select className="field" name="departmentId"><option value="">Or entire department</option>{departments.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select>
+      <select className="field" name="academicYearId"><option value="">Or entire academic year</option>{years.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select>
+      <select className="field" name="semesterId"><option value="">Or entire semester</option>{semesters.map(item=><option value={item.id} key={item.id}>{item.year_name} · {item.name}</option>)}</select>
       <div className="grid grid-cols-2 gap-3"><input className="field" name="startsAt" type="datetime-local"/><input className="field" name="dueAt" type="datetime-local"/></div>
       <button className="btn-primary md:col-span-2">Assign course</button>
     </ActionFeedbackForm>

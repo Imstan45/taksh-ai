@@ -21,15 +21,18 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "Invalid progress update" }, { status: 400 });
   const input = parsed.data;
 
-  const access = await prisma.$queryRaw<Array<{ allowed: boolean }>>`
-    SELECT EXISTS (
-      SELECT 1 FROM public.taksh_content_assets a
-      JOIN public.student_course_assignments sca
-        ON sca.course = a.course AND sca.student_id = ${session.user.id}::uuid AND sca.active = true
-      WHERE a.id = ${input.contentId}::uuid AND a.status = 'published'
-    ) AS allowed
+  const assets = await prisma.$queryRaw<Array<{ course: string; module: string; topic: string; subtopic: string; content_version: number }>>`
+    SELECT a.course,a.module,a.topic,a.subtopic,a.content_version
+    FROM public.taksh_content_assets a
+    JOIN public.student_course_assignments sca
+      ON sca.course=a.course AND sca.student_id=${session.user.id}::uuid AND sca.active
+      AND sca.revoked_at IS NULL AND (sca.starts_at IS NULL OR sca.starts_at<=now())
+      AND (sca.due_at IS NULL OR sca.due_at>=now())
+    WHERE a.id=${input.contentId}::uuid AND a.status='published'
+    LIMIT 1
   `;
-  if (!access[0]?.allowed) return Response.json({ error: "Lesson unavailable" }, { status: 403 });
+  const asset = assets[0];
+  if (!asset) return Response.json({ error: "Lesson unavailable" }, { status: 403 });
 
   const complete = input.complete === true;
   await prisma.$executeRaw`
@@ -37,8 +40,8 @@ export async function POST(request: Request) {
       student_id, course, module, topic, subtopic, content_id, content_version,
       status, progress_percentage, last_section, started_at, last_viewed_at, completed_at, updated_at
     ) VALUES (
-      ${session.user.id}::uuid, ${input.course}, ${input.module}, ${input.topic}, ${input.subtopic},
-      ${input.contentId}::uuid, ${input.contentVersion},
+      ${session.user.id}::uuid, ${asset.course}, ${asset.module}, ${asset.topic}, ${asset.subtopic},
+      ${input.contentId}::uuid, ${asset.content_version},
       ${complete ? "completed" : "in_progress"},
       ${complete ? 100 : input.progressPercentage}, ${input.lastSection},
       now(), now(), ${complete ? new Date() : null}, now()
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
   if (complete) {
     await prisma.$executeRaw`
       INSERT INTO public.student_xp_ledger (student_id, event_key, points, reason)
-      VALUES (${session.user.id}::uuid, ${`lesson:${input.contentId}:v${input.contentVersion}`}, 50, 'lesson_completed')
+      VALUES (${session.user.id}::uuid, ${`lesson:${input.contentId}:v${asset.content_version}`}, 50, 'lesson_completed')
       ON CONFLICT (student_id, event_key) DO NOTHING
     `;
     await prisma.$executeRaw`
@@ -82,4 +85,3 @@ export async function POST(request: Request) {
 
   return Response.json({ ok: true, completed: complete });
 }
-

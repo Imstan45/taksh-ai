@@ -8,6 +8,7 @@ import { requireCollegeAdmin } from "@/lib/admin-scope";
 type Metrics = {
   total_students: bigint; active_students: bigint; total_faculty: bigint; departments: bigint;
   batches: bigint; active_assignments: bigint; completion: number | null; assessment_participation: number | null;
+  activities: bigint; submission_rate: number | null;
 };
 
 export default async function Page() {
@@ -23,6 +24,11 @@ export default async function Page() {
       (SELECT count(*) FROM public.departments WHERE institution_id=${institutionId}::uuid AND status='active')::bigint departments,
       (SELECT count(*) FROM public.academic_batches WHERE institution_id=${institutionId}::uuid AND status='active')::bigint batches,
       (SELECT count(*) FROM public.student_course_assignments WHERE institution_id=${institutionId}::uuid AND active)::bigint active_assignments,
+      (SELECT count(*) FROM public.learning_activities WHERE institution_id=${institutionId}::uuid AND status IN ('published','closed'))::bigint activities,
+      (SELECT round(100.0*count(submission.id) FILTER(WHERE submission.status IN ('submitted','late','graded'))/nullif(count(DISTINCT activity.id::text||':'||membership.user_id::text),0),1)
+        FROM public.learning_activities activity JOIN public.user_academic_memberships membership ON membership.batch_id=activity.batch_id AND membership.active AND membership.membership_type='STUDENT'
+        LEFT JOIN public.activity_submissions submission ON submission.activity_id=activity.id AND submission.student_id=membership.user_id
+        WHERE activity.institution_id=${institutionId}::uuid AND activity.status IN ('published','closed'))::float submission_rate,
       (SELECT round(avg(progress_percentage),1) FROM public.student_content_progress progress JOIN public.user_roles member ON member.user_id=progress.student_id WHERE member.institution_id=${institutionId}::uuid)::float completion,
       (SELECT round(100.0 * count(DISTINCT attempt.student_id) /
         nullif(count(DISTINCT coalesce(assignment.student_id,membership.user_id)),0),1)
@@ -38,6 +44,7 @@ export default async function Page() {
     ["Total students", Number(metrics.total_students)], ["Active students", Number(metrics.active_students)],
     ["Faculty", Number(metrics.total_faculty)], ["Departments", Number(metrics.departments)],
     ["Batches", Number(metrics.batches)], ["Active course assignments", Number(metrics.active_assignments)],
+    ["Activities", Number(metrics.activities)], ["Submission rate", `${metrics.submission_rate ?? 0}%`],
     ["Course completion", `${metrics.completion ?? 0}%`], ["Assessment participation", `${metrics.assessment_participation ?? 0}%`],
   ];
   return <DashboardShell {...session.user}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{cards.map(([label,value])=><section className="glass-card" key={label}><p className="text-sm text-zinc-400">{label}</p><p className="mt-3 text-3xl font-semibold">{value}</p></section>)}</div><div className="mt-6 grid gap-4 md:grid-cols-2"><Link className="glass-card hover:border-violet-400/40" href="/admin/departments"><h2 className="text-xl font-semibold">Departments</h2><p className="mt-2 text-zinc-400">Create, edit, activate and deactivate departments.</p></Link><Link className="glass-card hover:border-violet-400/40" href="/admin/academics"><h2 className="text-xl font-semibold">Academic years and batches</h2><p className="mt-2 text-zinc-400">Manage academic periods and institution batches.</p></Link></div></DashboardShell>;
