@@ -15,6 +15,8 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/student/assessments", label: "Assigned assessments" },
     { href: "/student/feedback", label: "Feedback" },
     { href: "/notifications", label: "Notifications" },
+    { href: "/pricing", label: "Upgrade" },
+    { href: "/billing", label: "Billing" },
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },

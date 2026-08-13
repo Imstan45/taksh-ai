@@ -1,0 +1,2 @@
+import{createHmac}from"node:crypto";import{describe,expect,it}from"vitest";import{validSignature}from"@/lib/payments/signature";
+describe("payment security",()=>{it("accepts only the correct HMAC",()=>{const payload="order_1|pay_1",secret="test-secret",signature=createHmac("sha256",secret).update(payload).digest("hex");expect(validSignature(payload,signature,secret)).toBe(true);expect(validSignature(payload,signature.replace(/^./,"0"),secret)).toBe(false)});it("rejects malformed signatures without throwing",()=>expect(validSignature("x","bad","secret")).toBe(false))});

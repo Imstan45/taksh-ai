@@ -1,0 +1,1 @@
+import type{MetadataRoute}from"next";export default function sitemap():MetadataRoute.Sitemap{const b=process.env.NEXT_PUBLIC_APP_URL||"https://taksh-ai-snowy.vercel.app";return["","/pricing","/signup","/login","/privacy","/terms","/refund-policy","/contact"].map(path=>({url:b+path,lastModified:new Date()}))}

@@ -1,0 +1,1 @@
+import{createHmac,timingSafeEqual}from"node:crypto";export function validSignature(payload:string,signature:string,secret:string){const expected=createHmac("sha256",secret).update(payload).digest("hex"),a=Buffer.from(expected),b=Buffer.from(signature||"");return a.length===b.length&&timingSafeEqual(a,b)}

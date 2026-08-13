@@ -1,45 +1,7 @@
-import Link from "next/link";
-import { ArrowRight, BrainCircuit, ChartNoAxesCombined, ShieldCheck } from "lucide-react";
-
-export default function Home() {
-  return (
-    <main className="min-h-screen overflow-hidden bg-[#07080d] text-white">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-        <Brand />
-        <div className="flex items-center gap-3">
-          <Link className="btn-ghost" href="/login">Sign in</Link>
-          <Link className="btn-primary" href="/signup">Get started</Link>
-        </div>
-      </nav>
-      <section className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-20 lg:grid-cols-[1.15fr_.85fr] lg:pt-28">
-        <div className="orb" />
-        <div className="relative">
-          <p className="eyebrow">Built for placement success</p>
-          <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-.05em] sm:text-7xl">Your preparation, made brilliantly personal.</h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-zinc-400">Taksh AI finds the gaps, builds your roadmap, and coaches you from first assessment to final interview.</p>
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link className="btn-primary group" href="/signup">Start preparing <ArrowRight className="size-4 transition group-hover:translate-x-1" /></Link>
-            <Link className="btn-ghost border border-white/10" href="/login">I have an account</Link>
-          </div>
-        </div>
-        <div className="relative grid gap-4 sm:grid-cols-2 lg:pt-10">
-          {[
-            [BrainCircuit, "Adaptive learning", "A roadmap that evolves with every answer."],
-            [ChartNoAxesCombined, "Progress clarity", "Know what improved and what needs focus."],
-            [ShieldCheck, "Secure by design", "Protected accounts and role-based access."],
-          ].map(([Icon, title, body], index) => (
-            <div className={`glass-card ${index === 2 ? "sm:col-span-2" : ""}`} key={String(title)}>
-              <Icon className="size-6 text-violet-400" />
-              <h2 className="mt-8 text-lg font-medium">{String(title)}</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{String(body)}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
-  );
-}
-
-export function Brand() {
-  return <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight"><span className="grid size-9 place-items-center rounded-xl bg-violet-600 shadow-lg shadow-violet-500/20"><BrainCircuit className="size-5" /></span>Taksh AI</Link>;
-}
+import Link from "next/link";import { ArrowRight,BarChart3,BookOpen,BrainCircuit,CheckCircle2,Languages,Target } from "lucide-react";
+const areas=["Quantitative Aptitude","Logical Reasoning","English","Reading Comprehension","Placement Preparation","Personalised Practice","Progress Tracking"];
+export default function Home(){return <main className="min-h-screen bg-white text-zinc-950"><nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5"><Brand/><div className="flex gap-2"><Link className="rounded-xl px-4 py-2 text-sm" href="/login">Sign in</Link><Link className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-semibold text-white" href="/signup?next=/profiling">Take the Free Test</Link></div></nav>
+<section className="relative overflow-hidden bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 px-5 py-20 sm:py-28"><div className="mx-auto max-w-6xl text-center"><p className="text-sm font-semibold uppercase tracking-[.2em] text-violet-700">Free placement-readiness diagnostic</p><h1 className="mx-auto mt-6 max-w-4xl text-5xl font-bold tracking-[-.05em] sm:text-7xl">Are You Placement Ready?</h1><p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-zinc-600">Test your aptitude, reasoning and English skills. Discover your strengths, identify your weak areas and receive a personalised improvement path.</p><div className="mt-9 flex flex-wrap justify-center gap-3"><Link className="inline-flex items-center gap-2 rounded-2xl bg-violet-700 px-6 py-4 font-semibold text-white shadow-xl shadow-violet-200" href="/signup?next=/profiling">Take the Free Test <ArrowRight className="size-4"/></Link><Link className="rounded-2xl border border-violet-200 bg-white px-6 py-4 font-semibold text-violet-800" href="/student/courses">Explore Learning</Link></div></div></section>
+<section className="mx-auto max-w-6xl px-5 py-20"><p className="text-sm font-semibold text-violet-700">What you can improve</p><h2 className="mt-3 text-3xl font-bold">One clear path across placement skills</h2><div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{areas.map((x,i)=>{const I=[Target,BrainCircuit,Languages,BookOpen,CheckCircle2,BarChart3,Target][i];return <article className="rounded-3xl border border-violet-100 bg-violet-50/40 p-6" key={x}><I className="size-6 text-violet-700"/><h3 className="mt-5 font-semibold">{x}</h3></article>})}</div></section>
+<section className="bg-zinc-950 px-5 py-20 text-white"><div className="mx-auto max-w-6xl"><h2 className="text-3xl font-bold">How It Works</h2><div className="mt-8 grid gap-4 md:grid-cols-5">{["Take the assessment","Receive your result","Identify weak areas","Follow your learning path","Track your improvement"].map((x,i)=><div className="rounded-2xl border border-white/10 p-5" key={x}><b className="text-violet-300">0{i+1}</b><p className="mt-4 text-sm">{x}</p></div>)}</div><p className="mt-12 max-w-3xl text-sm leading-6 text-zinc-400">Taksh AI supports learning and employability preparation. It does not guarantee employment, placement, salary or examination results.</p><footer className="mt-10 flex flex-wrap gap-5 text-sm text-zinc-400"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/refund-policy">Refunds</Link><Link href="/contact">Contact</Link><Link href="/pricing">Pricing</Link></footer></div></section></main>}
+export function Brand(){return <Link href="/" className="flex items-center gap-2 font-bold text-violet-800"><span className="grid size-9 place-items-center rounded-xl bg-violet-700 text-white"><BrainCircuit className="size-5"/></span>Taksh AI</Link>}

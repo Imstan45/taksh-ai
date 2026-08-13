@@ -16,6 +16,11 @@ export const registerSchema = z.object({
   name: z.string().trim().min(2).max(80).transform((value) => value.replace(/[<>]/g, "")),
   email,
   password: passwordSchema,
+  collegeName: z.string().trim().max(120).optional().default(""),
+  academicStatus: z.enum(["year_1","year_2","year_3","year_4","graduate"]),
+  age18: z.literal("on"), termsAccepted: z.literal("on"), privacyAccepted: z.literal("on"),
+  marketingConsent: z.enum(["on"]).optional(),
+  utm_source:z.string().max(200).optional(),utm_medium:z.string().max(200).optional(),utm_campaign:z.string().max(200).optional(),utm_content:z.string().max(200).optional(),utm_term:z.string().max(200).optional(),referral_code:z.string().max(100).optional(),
 });
 export const emailSchema = z.object({ email });
 export const tokenSchema = z.object({ token: z.string().min(32).max(256) });

@@ -5,8 +5,8 @@ import { roleCanAccessPath, roleHome } from "@/types/roles";
 
 describe("authentication validation", () => {
   it("normalizes valid registrations", () => {
-    const result = registerSchema.parse({ name: "  Ada Lovelace  ", email: " ADA@EXAMPLE.COM ", password: "Secure!Pass1" });
-    expect(result).toEqual({ name: "Ada Lovelace", email: "ada@example.com", password: "Secure!Pass1" });
+    const result = registerSchema.parse({ name: "  Ada Lovelace  ", email: " ADA@EXAMPLE.COM ", password: "Secure!Pass1", academicStatus:"graduate",age18:"on",termsAccepted:"on",privacyAccepted:"on" });
+    expect(result).toMatchObject({ name: "Ada Lovelace", email: "ada@example.com", password: "Secure!Pass1",academicStatus:"graduate",age18:"on",termsAccepted:"on",privacyAccepted:"on" });
   });
   it.each(["short", "alllowercase1!", "NOLOWERCASE1!", "NoNumberHere!", "NoSymbolHere1"])("rejects weak password %s", (password) => {
     expect(passwordSchema.safeParse(password).success).toBe(false);

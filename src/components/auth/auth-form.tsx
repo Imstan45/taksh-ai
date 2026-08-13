@@ -96,6 +96,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             </span>
           </label>
         )}
+        {mode === "signup" && <>
+          <Field label="College name (optional)" name="collegeName" placeholder="Your college" required={false} />
+          <label className="block text-sm text-zinc-300">Current academic status<select className="field mt-2" name="academicStatus" required defaultValue=""><option value="" disabled>Select status</option><option value="year_1">First year</option><option value="year_2">Second year</option><option value="year_3">Third year</option><option value="year_4">Final year</option><option value="graduate">Graduate</option></select></label>
+          <label className="flex gap-3 text-sm text-zinc-300"><input name="age18" type="checkbox" required className="accent-violet-600"/>I declare that I am 18 years of age or older.</label>
+          <label className="flex gap-3 text-sm text-zinc-300"><input name="termsAccepted" type="checkbox" required className="accent-violet-600"/>I accept the <Link className="text-violet-400" href="/terms">Terms of Use</Link>.</label>
+          <label className="flex gap-3 text-sm text-zinc-300"><input name="privacyAccepted" type="checkbox" required className="accent-violet-600"/>I accept the <Link className="text-violet-400" href="/privacy">Privacy Policy</Link>.</label>
+          <label className="flex gap-3 text-sm text-zinc-400"><input name="marketingConsent" type="checkbox" className="accent-violet-600"/>Send me optional learning and product updates.</label>
+          {["utm_source","utm_medium","utm_campaign","utm_content","utm_term","referral_code"].map(key=>params.get(key)&&<input type="hidden" name={key} value={params.get(key)??""} key={key}/>)}
+        </>}
         {mode === "login" && <div className="flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-zinc-400"><input name="rememberMe" type="checkbox" className="accent-violet-600" /> Remember me</label><Link className="text-violet-400 hover:text-violet-300" href="/forgot-password">Forgot password?</Link></div>}
         {message && <p role="status" className={`rounded-xl border px-4 py-3 text-sm ${message.type === "error" ? "border-red-500/20 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"}`}>{message.text}</p>}
         <button className="btn-primary w-full" disabled={busy} type="submit">{busy && <LoaderCircle className="size-4 animate-spin" />}{autoVerify ? "Verify email" : mode === "login" ? "Sign in" : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Update password"}</button>
