@@ -80,10 +80,16 @@ export function GenerateWorkspace() {
   async function syncCurriculum() {
     setBusy(true); setNotice("");
     try {
-      const response=await fetch("/api/content-factory/curriculum/sync",{method:"POST"});
-      const data=await response.json();
-      if(!response.ok)throw new Error(data.error||"Curriculum sync failed.");
-      await load(); setNotice(`${data.synced} lessons synced: ${data.created} published, ${data.preserved} existing lessons preserved.`);
+      let cursor=0,created=0,preserved=0,total=0,done=false;
+      while(!done){
+        setQueue({current:cursor,total:total||65,completed:created+preserved,failed:0,label:"Publishing authored curriculum"});
+        const response=await fetch("/api/content-factory/curriculum/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cursor,batchSize:8})});
+        const text=await response.text();
+        const data=text?JSON.parse(text):{};
+        if(!response.ok)throw new Error(data.error||"Curriculum sync failed.");
+        cursor=data.nextCursor; total=data.total; created+=data.created; preserved+=data.preserved; done=data.done;
+      }
+      await load(); setNotice(`${total} lessons synced: ${created} published, ${preserved} existing lessons preserved.`);
     } catch(error){setNotice(error instanceof Error?error.message:"Curriculum sync failed.")} finally {setBusy(false)}
   }
 
