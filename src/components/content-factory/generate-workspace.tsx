@@ -9,8 +9,7 @@ type Asset = { id: string; course: string; module: string; topic: string; subtop
 type QueueState = { current: number; total: number; completed: number; failed: number; label: string };
 type FactoryConfig = { gemini: boolean; supabase: boolean; database: boolean; model?: string };
 type FactorySettings = {
-  default_model: string; default_teaching_style: string; default_difficulty: string; default_language: string;
-  default_content_depth: string; default_batch_size: number; auto_save_drafts: boolean; require_manual_approval: boolean;
+  default_model: string;
 };
 
 const assetKey = (row: CurriculumRow) => [row.course, row.module, row.topic, row.subtopic].join("::");
@@ -27,22 +26,7 @@ export function GenerateWorkspace() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<FactoryConfig>({ gemini: false, supabase: false, database: false });
-  const [model, setModel] = useState("gemini-3.6-flash");
-  const [options, setOptions] = useState({
-    teachingStyle: "Concept-first and practical",
-    difficulty: "Intermediate",
-    targetAudience: "Undergraduate engineering students",
-    language: "English",
-    depth: "Detailed",
-    examples: true,
-    workedExamples: true,
-    practice: true,
-    quiz: true,
-    summary: true,
-    takeaways: true,
-    mistakes: true,
-    applications: true,
-  });
+  const [model, setModel] = useState("Taksh authored engine");
 
   async function load() {
     const [curriculumResponse, assetResponse, configResponse, settingsResponse] = await Promise.all([
@@ -64,15 +48,8 @@ export function GenerateWorkspace() {
     setConfig(configData);
     const settings = settingsData.settings as FactorySettings | undefined;
     if (settings) {
-      setModel(settings.default_model);
-      setOptions((current) => ({
-        ...current,
-        teachingStyle: settings.default_teaching_style,
-        difficulty: settings.default_difficulty,
-        language: settings.default_language,
-        depth: settings.default_content_depth,
-      }));
-    } else if (configData.model) setModel(configData.model);
+      setModel("Taksh authored engine");
+    }
   }
 
   useEffect(() => { void load().catch((error) => setNotice(error.message)).finally(() => setLoading(false)); }, []);
@@ -100,9 +77,19 @@ export function GenerateWorkspace() {
     });
   }
 
+  async function syncCurriculum() {
+    setBusy(true); setNotice("");
+    try {
+      const response=await fetch("/api/content-factory/curriculum/sync",{method:"POST"});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||"Curriculum sync failed.");
+      await load(); setNotice(`${data.synced} lessons synced: ${data.created} published, ${data.preserved} existing lessons preserved.`);
+    } catch(error){setNotice(error instanceof Error?error.message:"Curriculum sync failed.")} finally {setBusy(false)}
+  }
+
   async function generateRows(targets: CurriculumRow[], regenerate = false) {
-    if (!config.gemini || !config.supabase || !config.database) {
-      setNotice("Generation is unavailable until Gemini, Supabase and the content database all show Ready in Settings.");
+    if (!config.supabase || !config.database) {
+      setNotice("Authoring is unavailable until Supabase and the content database are ready.");
       return;
     }
     const eligible = regenerate ? targets : targets.filter((row) => !assetMap.has(assetKey(row)));
@@ -115,16 +102,9 @@ export function GenerateWorkspace() {
       const row = eligible[index];
       setQueue((current) => ({ ...current, current: index + 1, label: row.subtopic }));
       try {
-        const generation = await fetch("/api/content-factory/generate", {
+        const generation = await fetch("/api/content-factory/authored", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model, input: {
-            course: row.course, module: row.module, topic: row.topic, subtopic: row.subtopic,
-            targetAudience: options.targetAudience, difficulty: options.difficulty, explanationDepth: options.depth,
-            examContext: `${options.teachingStyle}; output language: ${options.language}; include practice: ${options.practice}; include quiz: ${options.quiz}; include summary: ${options.summary}; include key takeaways: ${options.takeaways}; include real-world applications: ${options.applications}`,
-            exampleCount: options.workedExamples ? 3 : options.examples ? 1 : 0,
-            mistakeCount: options.mistakes ? 5 : 0, includeMethod: true, includeMemoryAid: true,
-            includePlacementTips: options.applications, includeCheckpoints: options.quiz,
-          }}),
+          body: JSON.stringify({ course: row.course, module: row.module, topic: row.topic, subtopic: row.subtopic }),
         });
         const generatedContent = await generation.json();
         if (!generation.ok) throw new Error(generatedContent.error || "Generation failed.");
@@ -152,7 +132,7 @@ export function GenerateWorkspace() {
   return (
     <div className="space-y-6">
       {notice && <div role="status" className="flex items-center justify-between rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100"><span>{notice}</span><button onClick={() => setNotice("")}>×</button></div>}
-      {!loading && (!config.gemini || !config.supabase || !config.database) && <div role="alert" className="flex flex-col gap-3 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between"><span>Content Factory setup is incomplete: Gemini {config.gemini ? "ready" : "missing"}, Supabase {config.supabase ? "ready" : "missing"}, database {config.database ? "ready" : "unavailable"}.</span><a className="btn-ghost border border-amber-300/20" href="/superadmin/content-factory/settings">Open settings</a></div>}
+      {!loading && (!config.supabase || !config.database) && <div role="alert" className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">Content Factory needs a working Supabase content database. Gemini is no longer required.</div>}
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {[
           ["Syllabus topics", rows.length], ["Generated", generated.length], ["Needs review", review.length],
@@ -171,6 +151,7 @@ export function GenerateWorkspace() {
             <label className="text-xs text-zinc-400">Topic<select className="field mt-2" value={topic} onChange={(e) => setTopic(e.target.value)}><option value="">All topics</option>{topics.map((value) => <option key={value}>{value}</option>)}</select></label>
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
+            <button className="btn-ghost border border-white/10" disabled={busy} onClick={()=>void syncCurriculum()}><RefreshCw className="size-4"/>Sync complete curriculum</button>
             <button className="btn-primary" disabled={loading || busy || !selectedRows.length} onClick={() => void generateRows(selectedRows)}>{busy ? <LoaderCircle className="size-4 animate-spin" /> : <Play className="size-4" />}{loading ? "Loading…" : busy ? "Generating…" : `Generate selected (${selectedRows.length})`}</button>
             <button className="btn-ghost border border-white/10" disabled={loading || busy || !filtered.length} onClick={() => void generateRows(filtered)}>{busy ? "Generation running…" : "Generate all remaining"}</button>
             <button className="btn-ghost border border-white/10" disabled={busy || selectedRows.length !== 1 || !assetMap.has(assetKey(selectedRows[0]))} onClick={() => void generateRows(selectedRows, true)}><RefreshCw className="size-4" />Regenerate selected</button>
@@ -189,11 +170,9 @@ export function GenerateWorkspace() {
           </div>
         </section>
         <aside className="glass-card h-fit space-y-4">
-          <div><h3 className="font-semibold">Generation defaults</h3><p className="mt-1 text-xs text-zinc-500">Applied to this generation run · {model}</p></div>
-          {(["teachingStyle","difficulty","targetAudience","language","depth"] as const).map((key) => <label className="block text-xs capitalize text-zinc-400" key={key}>{key.replace(/([A-Z])/g, " $1")}<input className="field mt-2" value={options[key]} onChange={(e) => setOptions({ ...options, [key]: e.target.value })} /></label>)}
-          <div className="grid gap-2 pt-2">
-            {(["examples","workedExamples","practice","quiz","summary","takeaways","mistakes","applications"] as const).map((key) => <label className="flex items-center gap-2 text-sm text-zinc-300" key={key}><input type="checkbox" checked={options[key]} onChange={(e) => setOptions({ ...options, [key]: e.target.checked })} />Include {key.replace(/([A-Z])/g, " $1").toLowerCase()}</label>)}
-          </div>
+          <div><h3 className="font-semibold">Authored lesson recipe</h3><p className="mt-1 text-xs text-zinc-500">Fast, deterministic and reviewable · {model}</p></div>
+          <ul className="space-y-3 text-sm text-zinc-300"><li>Compact 8–12 minute lesson</li><li>Concept, rules and method cards</li><li>Worked example with answer reveal</li><li>Common mistake and speed tip</li><li>Checkpoint and one-minute revision</li><li>Automatic mobile presentation</li></ul>
+          <p className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-5 text-emerald-200">No AI key, prompt tuning or model wait is required. Every syllabus item produces the same reviewed Taksh structure.</p>
         </aside>
       </div>
     </div>
