@@ -62,7 +62,7 @@ export async function POST(request: Request) {
           asset_id: asset.id,
           version_number: 1,
           change_type: "generated",
-          change_note: "Initial Gemini generation",
+          change_note: content.quality_metadata.generated_by === "taksh" ? "Initial Taksh authored generation" : "Initial Gemini generation",
           content,
           created_by: session.sub,
         }),

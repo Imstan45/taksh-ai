@@ -77,19 +77,18 @@ export function ReviewWorkspace() {
 
   async function regenerate() {
     if (!draft) return;
-    const instruction = window.prompt("What should Gemini improve in the explanation?");
-    if (!instruction) return;
+    if (!window.confirm("Restore this lesson from the reviewed Taksh authored curriculum? Your unsaved edits will be replaced.")) return;
     setBusy(true);
     try {
-      const response = await fetch("/api/content-factory/regenerate", {
+      const response = await fetch("/api/content-factory/authored", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedSection: "core_content", regenerationInstruction: instruction, existingContentJson: draft.content }),
+        body: JSON.stringify({ course:draft.course,module:draft.module,topic:draft.topic,subtopic:draft.subtopic }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Regeneration failed.");
-      update(["core_content"], data.section);
-      setMessage("Gemini returned a revised explanation. Review it, then save the draft.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Regeneration failed."); }
+      if (!response.ok) throw new Error(data.error || "Authored reset failed.");
+      setDraft({...draft,content:data.content});
+      setMessage("The reviewed Taksh lesson was restored. Review it, then save.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Authored reset failed."); }
     finally { setBusy(false); }
   }
 
@@ -140,12 +139,12 @@ export function ReviewWorkspace() {
           </EditorSection>
         </section>
         <aside className="glass-card h-fit space-y-3 xl:sticky xl:top-6">
-          <div className="mb-5"><span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-2.5 py-1 text-xs capitalize text-violet-200">{draft.status.replace("_"," ")}</span><p className="mt-3 text-xs text-zinc-500">Generated {new Date(draft.created_at).toLocaleDateString()} · Gemini</p></div>
+          <div className="mb-5"><span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-2.5 py-1 text-xs capitalize text-violet-200">{draft.status.replace("_"," ")}</span><p className="mt-3 text-xs text-zinc-500">Updated {new Date(draft.updated_at).toLocaleDateString()} · Taksh authored content</p></div>
           <button className="btn-ghost w-full gap-2 border border-white/10" disabled={busy} onClick={() => void save()}><Save className="size-4" />Save draft</button>
           {draft.status === "draft" && <button className="btn-primary w-full" disabled={busy} onClick={() => void save("in_review")}><Send className="size-4" />Send for review</button>}
           {draft.status === "in_review" && <button className="btn-primary w-full" disabled={busy} onClick={() => void save("approved")}><Check className="size-4" />Approve</button>}
           {draft.status === "in_review" && <button className="btn-ghost w-full gap-2 border border-red-400/20 text-red-300" disabled={busy} onClick={() => void reject()}><X className="size-4" />Reject</button>}
-          <button className="btn-ghost w-full gap-2 border border-white/10" disabled={busy} onClick={() => void regenerate()}><RefreshCw className="size-4" />Request regeneration</button>
+          <button className="btn-ghost w-full gap-2 border border-white/10" disabled={busy} onClick={() => void regenerate()}><RefreshCw className="size-4" />Restore authored lesson</button>
           {draft.status === "approved" && <button className="btn-primary w-full" disabled={busy} onClick={() => void save("published")}><Send className="size-4" />Publish</button>}
         </aside>
       </div>

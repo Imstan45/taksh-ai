@@ -127,11 +127,11 @@ export const takshContentSchema = z.object({
     final_checklist: z.array(z.string()).min(1),
   }),
   quality_metadata: z.object({
-    content_origin: z.literal("original_ai_draft"),
-    review_status: z.literal("pending_human_review"),
-    copyright_review_status: z.literal("pending"),
-    prompt_version: z.literal("taksh-content-master-v1"),
-    generated_by: z.literal("gemini"),
+    content_origin: z.enum(["original_ai_draft", "taksh_authored"]),
+    review_status: z.enum(["pending_human_review", "approved"]),
+    copyright_review_status: z.enum(["pending", "original"]),
+    prompt_version: z.enum(["taksh-content-master-v1", "deterministic-v2"]),
+    generated_by: z.enum(["gemini", "taksh"]),
     sections_not_applicable: z.array(z.string()),
   }),
 });
