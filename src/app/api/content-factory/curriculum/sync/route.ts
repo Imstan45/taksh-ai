@@ -4,6 +4,7 @@ import { authoredCurriculum, buildAuthoredLesson } from "@/lib/content-factory/a
 
 export async function POST(request:Request){
   const session=await requireFactorySession(request); if(!session)return Response.json({error:"Forbidden"},{status:403});
+  try {
   const body=await request.json().catch(()=>({})) as {cursor?:number;batchSize?:number};
   const cursor=Math.max(0,Number.isFinite(body.cursor)?Number(body.cursor):0);
   const batchSize=Math.min(10,Math.max(1,Number.isFinite(body.batchSize)?Number(body.batchSize):8));
@@ -25,4 +26,8 @@ export async function POST(request:Request){
   } return {created,preserved}});
   const nextCursor=cursor+batch.length;
   return Response.json({synced:batch.length,total:authoredCurriculum.length,nextCursor,done:nextCursor>=authoredCurriculum.length,...result});
+  } catch(error) {
+    console.error("Authored curriculum sync failed",error);
+    return Response.json({error:error instanceof Error?error.message:"Curriculum sync failed."},{status:500});
+  }
 }
