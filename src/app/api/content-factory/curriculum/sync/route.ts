@@ -23,7 +23,7 @@ export async function POST(request:Request){
     `;
     await tx.$executeRaw`INSERT INTO public.taksh_content_versions(asset_id,version_number,change_type,change_note,content,created_by) VALUES(${assets[0].id}::uuid,1,'authored','Initial deterministic Taksh lesson',${serialized}::jsonb,${session.sub}::uuid)`;
     created++;
-  } return {created,preserved}});
+  } return {created,preserved}},{maxWait:5_000,timeout:20_000});
   const nextCursor=cursor+batch.length;
   return Response.json({synced:batch.length,total:authoredCurriculum.length,nextCursor,done:nextCursor>=authoredCurriculum.length,...result});
   } catch(error) {
