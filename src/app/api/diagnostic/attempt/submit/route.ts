@@ -1,2 +1,75 @@
-import{z}from"zod";import{auth}from"@/auth";import{prisma}from"@/lib/prisma";import{diagnosticAnalysis,performanceLabel}from"@/lib/diagnostic/scoring";const schema=z.object({attemptId:z.string().uuid()});
-export async function POST(r:Request){const s=await auth();if(!s?.user)return Response.json({error:"Unauthorized"},{status:401});const p=schema.safeParse(await r.json().catch(()=>null));if(!p.success)return Response.json({error:"Invalid attempt"},{status:400});return prisma.$transaction(async tx=>{const as=await tx.$queryRaw<Array<{id:string;question_ids:string[];answers:Record<string,string>;started_at:Date;expires_at:Date;status:string}>>`select id,question_ids,answers,started_at,expires_at,status from public.diagnostic_attempts where id=${p.data.attemptId}::uuid and student_id=${s.user.id}::uuid for update`;const a=as[0];if(!a)return Response.json({error:"Attempt not found"},{status:404});if(a.status!=="IN_PROGRESS")return Response.json({attemptId:a.id,completed:true});const qs=await tx.$queryRaw<Array<{id:string;category:string;correct_answer:string;explanation:string;question_text:string;option_a:string;option_b:string;option_c:string;option_d:string}>>`select id,category,correct_answer,explanation,question_text,option_a,option_b,option_c,option_d from public.diagnostic_questions where id=any(${a.question_ids}::text[])`;const scores:Record<string,{correct:number;total:number}>={};let correct=0;for(const q of qs){scores[q.category]??={correct:0,total:0};scores[q.category].total++;if(a.answers[q.id]===q.correct_answer){scores[q.category].correct++;correct++}}const expired=Date.now()>=a.expires_at.getTime(),time=Math.min(600,Math.max(0,Math.round((Date.now()-a.started_at.getTime())/1000)));await tx.$executeRaw`update public.diagnostic_attempts set submitted_at=now(),time_taken_seconds=${time},score=${correct},category_scores=${JSON.stringify(scores)}::jsonb,status=${expired?'TIME_EXPIRED':'COMPLETED'},updated_at=now() where id=${a.id}::uuid`;return Response.json({attemptId:a.id,score:correct,total:10,incorrect:10-correct-(10-Object.keys(a.answers).length),unanswered:10-Object.keys(a.answers).length,timeTakenSeconds:time,status:expired?'TIME_EXPIRED':'COMPLETED',categories:Object.entries(scores).map(([category,x])=>({category,...x,percentage:Math.round(x.correct/x.total*100),label:performanceLabel(Math.round(x.correct/x.total*100))})),analysis:diagnosticAnalysis(scores),review:process.env.SHOW_DIAGNOSTIC_ANSWERS==='true'?qs.map(q=>({id:q.id,question:q.question_text,selected:a.answers[q.id]??null,correct:q.correct_answer,explanation:q.explanation,options:{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d}})):undefined});});}
+import { z } from "zod";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { diagnosticAnalysis, performanceLabel } from "@/lib/diagnostic/scoring";
+
+const schema = z.object({ attemptId: z.string().uuid() });
+const OPTION_KEYS = ["A", "B", "C", "D"] as const;
+type OptionKey = (typeof OPTION_KEYS)[number];
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return Response.json({ error: "Invalid attempt" }, { status: 400 });
+
+  return prisma.$transaction(async (tx) => {
+    const attempts = await tx.$queryRaw<Array<{
+      id: string;
+      question_ids: string[];
+      option_orders: Record<string, OptionKey[]>;
+      answers: Record<string, OptionKey>;
+      started_at: Date;
+      expires_at: Date;
+      status: string;
+    }>>`select id,question_ids,option_orders,answers,started_at,expires_at,status from public.diagnostic_attempts where id=${parsed.data.attemptId}::uuid and student_id=${session.user.id}::uuid for update`;
+    const attempt = attempts[0];
+    if (!attempt) return Response.json({ error: "Attempt not found" }, { status: 404 });
+    if (attempt.status !== "IN_PROGRESS") return Response.json({ attemptId: attempt.id, completed: true });
+
+    const questions = await tx.$queryRaw<Array<{ id: string; category: string; correct_answer: OptionKey; explanation: string; question_text: string; option_a: string; option_b: string; option_c: string; option_d: string }>>`
+      select id,category,correct_answer,explanation,question_text,option_a,option_b,option_c,option_d from public.diagnostic_questions where id=any(${attempt.question_ids}::text[])`;
+    const scores: Record<string, { correct: number; total: number }> = {};
+    let correct = 0;
+    const originalSelections: Record<string, OptionKey | null> = {};
+    for (const question of questions) {
+      scores[question.category] ??= { correct: 0, total: 0 };
+      scores[question.category].total++;
+      const displaySelection = attempt.answers[question.id];
+      const displayIndex = displaySelection ? OPTION_KEYS.indexOf(displaySelection) : -1;
+      const originalSelection = displayIndex >= 0
+        ? (attempt.option_orders[question.id] ?? OPTION_KEYS)[displayIndex]
+        : null;
+      originalSelections[question.id] = originalSelection;
+      if (originalSelection === question.correct_answer) {
+        scores[question.category].correct++;
+        correct++;
+      }
+    }
+
+    const expired = Date.now() >= attempt.expires_at.getTime();
+    const time = Math.min(600, Math.max(0, Math.round((Date.now() - attempt.started_at.getTime()) / 1000)));
+    await tx.$executeRaw`update public.diagnostic_attempts set submitted_at=now(),time_taken_seconds=${time},score=${correct},category_scores=${JSON.stringify(scores)}::jsonb,status=${expired ? "TIME_EXPIRED" : "COMPLETED"},updated_at=now() where id=${attempt.id}::uuid`;
+
+    const unanswered = 10 - Object.keys(attempt.answers).length;
+    return Response.json({
+      attemptId: attempt.id,
+      score: correct,
+      total: 10,
+      incorrect: 10 - correct - unanswered,
+      unanswered,
+      timeTakenSeconds: time,
+      status: expired ? "TIME_EXPIRED" : "COMPLETED",
+      categories: Object.entries(scores).map(([category, value]) => ({ category, ...value, percentage: Math.round(value.correct / value.total * 100), label: performanceLabel(Math.round(value.correct / value.total * 100)) })),
+      analysis: diagnosticAnalysis(scores),
+      review: process.env.SHOW_DIAGNOSTIC_ANSWERS === "true" ? questions.map((question) => ({
+        id: question.id,
+        question: question.question_text,
+        selected: originalSelections[question.id],
+        correct: question.correct_answer,
+        explanation: question.explanation,
+        options: { A: question.option_a, B: question.option_b, C: question.option_c, D: question.option_d },
+      })) : undefined,
+    });
+  });
+}
