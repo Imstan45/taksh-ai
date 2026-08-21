@@ -65,7 +65,7 @@ export function DashboardShell({ name, email, role, children }: { name?: string 
       <nav className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/10 bg-white/[.035] p-4">
         <div><p className="font-semibold">Taksh AI</p><p className="text-xs text-zinc-500">{role.replaceAll("_", " ")}</p></div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {role!=="SUPER_ADMIN"&&navigation[role].map((item) => <Link key={item.href} className="btn-ghost border border-white/10" href={item.href}>{item.label}</Link>)}
+          {role!=="SUPER_ADMIN"&&navigation[role].map((item) => <Link key={item.href} prefetch={false} className="btn-ghost border border-white/10" href={item.href}>{item.label}</Link>)}
           <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
             <button className="btn-ghost gap-2" type="submit"><LogOut className="size-4" /> Sign out</button>
           </form>
