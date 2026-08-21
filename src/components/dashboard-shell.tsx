@@ -7,6 +7,7 @@ import { SuperAdminNav } from "@/components/super-admin/super-admin-nav";
 const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   STUDENT: [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/diagnostic", label: "10-min Diagnostic" },
     { href: "/student/courses", label: "My courses" },
     { href: "/student/activities", label: "Activities" },
     { href: "/continue-learning", label: "Continue learning" },

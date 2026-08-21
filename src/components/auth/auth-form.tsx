@@ -73,6 +73,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
       const payload = await response.json() as { error?: string; message?: string };
       if (!response.ok) throw new Error(payload.error ?? "Something went wrong");
       setMessage({ type: "success", text: payload.message ?? "Done" });
+      if (mode === "signup" && payload.message) {
+        const result = await signIn("credentials", { email: form.get("email"), password: form.get("password"), redirect: false });
+        if (result?.error) throw new Error("Account created, but automatic sign-in failed. Please sign in.");
+        router.push(safeCallbackUrl(params.get("next"), "/diagnostic")); router.refresh(); return;
+      }
       if (mode === "verify") setTimeout(() => router.push("/login"), 1200);
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "Unable to continue" });
