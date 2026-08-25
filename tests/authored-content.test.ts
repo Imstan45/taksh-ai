@@ -29,6 +29,12 @@ describe("authored placement curriculum",()=>{
       "Track 1 - ServiceNow ITSM","Track 2 - ServiceNow Development","Track 3 - Prompt Engineering","Track 4 - Capstone Projects","Track 5 - Assessment & Career Readiness",
     ]));
     expect(serviceNowCurriculum.every(row=>row.course===SERVICENOW_COURSE&&row.practical&&row.coverage?.length)).toBe(true);
+    expect(serviceNowCurriculum.every(row=>row.detailedSections?.length===3)).toBe(true);
+    const foundations=serviceNowCurriculum.find(row=>row.subtopic==="ServiceNow and ITSM Foundations");
+    expect(foundations?.keyTerms?.map(item=>item.term)).toEqual(expect.arrayContaining(["ITSM","ITIL","Incident","Service request","Problem","Change","SLA","CI","CMDB"]));
+    const detailedLesson=buildAuthoredLesson(foundations!);
+    expect(detailedLesson.principles.rules.every(rule=>rule.explanation.length>120&&rule.why_it_works.startsWith("Example:"))).toBe(true);
+    expect(lessonToCards(detailedLesson).some(card=>card.id==="terms"&&card.points!.length>=9)).toBe(true);
     const assessment=serviceNowCurriculum.find(row=>row.subtopic==="How You Will Be Assessed");
     expect(assessment?.coverage).toEqual(expect.arrayContaining(["Weekly quizzes - 15%","Hands-on labs - 30%","ServiceNow application - 25%","Final demonstration - 5%"]));
     const outcomes=serviceNowCurriculum.find(row=>row.subtopic==="Career-ready Outcomes");
