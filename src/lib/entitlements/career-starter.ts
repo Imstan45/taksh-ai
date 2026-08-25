@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export const CAREER_STARTER_PLAN_CODE="career_starter";
-export const CAREER_STARTER_COURSES=["Python Fundamentals","Prompt Engineering Fundamentals","UI/UX Fundamentals","Logical Reasoning","English Proficiency"] as const;
+export const CAREER_STARTER_COURSES=["Python Fundamentals","Prompt Engineering Fundamentals","UI/UX Fundamentals","ServiceNow ITSM, Development & GenAI Career Program","Logical Reasoning","English Proficiency"] as const;
 
 export async function hasCareerStarterAccess(userId:string){
   const rows=await prisma.$queryRaw<Array<{allowed:boolean}>>`select exists(

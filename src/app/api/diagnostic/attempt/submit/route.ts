@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     await tx.$executeRaw`update public.diagnostic_attempts set submitted_at=now(),time_taken_seconds=${time},score=${correct},category_scores=${JSON.stringify(scores)}::jsonb,status=${expired ? "TIME_EXPIRED" : "COMPLETED"},updated_at=now() where id=${attempt.id}::uuid`;
 
     const unanswered = 10 - Object.keys(attempt.answers).length;
+    const access=await tx.$queryRaw<Array<{paid:boolean}>>`select exists(select 1 from public.entitlements e join public.plan_course_entitlements m on m.plan_id=e.plan_id where e.user_id=${session.user.id}::uuid and e.status='active' and e.expires_at>now()) paid`;
     return Response.json({
       attemptId: attempt.id,
       score: correct,
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       status: expired ? "TIME_EXPIRED" : "COMPLETED",
       categories: Object.entries(scores).map(([category, value]) => ({ category, ...value, percentage: Math.round(value.correct / value.total * 100), label: performanceLabel(Math.round(value.correct / value.total * 100)) })),
       analysis: diagnosticAnalysis(scores),
+      paidAccess:Boolean(access[0]?.paid),
       review: process.env.SHOW_DIAGNOSTIC_ANSWERS === "true" ? questions.map((question) => ({
         id: question.id,
         question: question.question_text,

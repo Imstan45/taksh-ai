@@ -3,111 +3,39 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { getGamification, getStudentLearningOverview } from "@/lib/learning/service";
-import { BookOpen, Flame, Trophy } from "lucide-react";
+import { getGamification,getStudentLearningOverview } from "@/lib/learning/service";
+import { hasCareerStarterAccess } from "@/lib/entitlements/career-starter";
+import { categoryNames,diagnosticAnalysis,readinessBand } from "@/lib/diagnostic/scoring";
+import { BookOpen,Flame,Trophy } from "lucide-react";
 
-type Row = {
-  profile_json: {
-    profiling?: {
-      readinessScore?: number;
-      level?: string;
-      weakAreas?: string[];
-      strongAreas?: string[];
-      categoryScores?: Array<{ category: string; score: number; level: string }>;
-    };
-  } | null;
-};
+type Diagnostic={score:number;category_scores:Record<string,{correct:number;total:number}>;submitted_at:Date};
+const categoryLabel=(value:string)=>categoryNames[value as keyof typeof categoryNames]??value.replaceAll("_"," ");
 
-const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+export default async function Page(){
+ const session=await auth();if(!session?.user)redirect("/login");
+ if(session.user.role==="SUPER_ADMIN")redirect("/super-admin");
+ if(session.user.role==="COLLEGE_ADMIN"||session.user.role==="FACULTY")redirect("/admin");
+ const [diagnostics,courses,game,paid,plans,dueActivities,recentResults]=await Promise.all([
+  prisma.$queryRaw<Diagnostic[]>`select score,category_scores,submitted_at from public.diagnostic_attempts where student_id=${session.user.id}::uuid and status in('COMPLETED','TIME_EXPIRED') order by submitted_at desc limit 1`,
+  getStudentLearningOverview(session.user.id).catch(()=>[]),
+  getGamification(session.user.id).catch(()=>({xp:0,level:1,streak:0,completed:0})),
+  hasCareerStarterAccess(session.user.id).catch(()=>false),
+  prisma.$queryRaw<Array<{id:string;price_in_paise:number}>>`select id,price_in_paise from public.plans where code='career_starter' and active limit 1`,
+  prisma.$queryRaw<Array<{id:string;title:string;activity_type:string;course:string;due_at:Date|null}>>`select distinct activity.id,activity.title,activity.activity_type,activity.course,activity.due_at from public.learning_activities activity left join public.user_academic_memberships membership on membership.user_id=${session.user.id}::uuid and membership.active left join public.activity_submissions submission on submission.activity_id=activity.id and submission.student_id=${session.user.id}::uuid where activity.status='published' and (activity.student_id=${session.user.id}::uuid or activity.batch_id=membership.batch_id) and submission.id is null order by activity.due_at nulls last limit 5`.catch(()=>[]),
+  prisma.$queryRaw<Array<{id:string;title:string;marks:number;max_marks:number;grade:string|null}>>`select activity.id,activity.title,submission.marks::float marks,activity.max_marks::float max_marks,submission.grade from public.activity_submissions submission join public.learning_activities activity on activity.id=submission.activity_id where submission.student_id=${session.user.id}::uuid and submission.status='graded' order by submission.graded_at desc limit 4`.catch(()=>[]),
+ ]);
+ const diagnostic=diagnostics[0],plan=plans[0],percent=diagnostic?Math.round(diagnostic.score/10*100):0;
+ const analysis=diagnostic?diagnosticAnalysis(diagnostic.category_scores):null;
+ const resume=courses.find(course=>course.lastSlug)??courses[0];
+ return <DashboardShell {...session.user}>
+  {!diagnostic?<section className="glass-card"><p className="eyebrow">Your first step</p><h2 className="mt-5 text-3xl font-semibold">Take the 10-minute Placement Readiness Diagnostic</h2><p className="mt-3 max-w-2xl leading-7 text-zinc-400">Answer 10 focused questions across logical reasoning, English, quantitative aptitude and technical fundamentals. Your answers save automatically.</p><Link className="btn-primary mt-6" href="/diagnostic">Start the 10-minute diagnostic</Link></section>:
+  <div className="grid gap-6 lg:grid-cols-[1fr_320px]"><section className="glass-card"><p className="eyebrow">Placement Readiness</p><h2 className="mt-5 text-3xl font-semibold">{readinessBand(percent)}</h2><p className="mt-2 text-5xl font-bold text-violet-300">{percent}%</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{Object.entries(diagnostic.category_scores).map(([category,value])=><div className="rounded-2xl border border-white/10 bg-black/20 p-4" key={category}><div className="flex justify-between text-sm"><span>{categoryLabel(category)}</span><strong>{value.correct}/{value.total}</strong></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-violet-500" style={{width:`${Math.round(value.correct/value.total*100)}%`}}/></div></div>)}</div><div className="mt-7 flex flex-wrap gap-3"><Link className="btn-primary" href="/student/courses">{paid?"Continue learning":"Preview courses"}</Link><Link className="btn-ghost border border-white/10" href="/diagnostic">{paid?"Retake diagnostic":"View diagnostic"}</Link></div></section>
+  <aside className="glass-card h-fit"><div className="grid grid-cols-2 gap-3 border-b border-white/10 pb-6"><div><Trophy className="size-5 text-amber-300"/><b className="mt-2 block">Level {game.level}</b><small className="text-zinc-500">{game.xp} XP</small></div><div><Flame className="size-5 text-orange-300"/><b className="mt-2 block">{game.streak} days</b><small className="text-zinc-500">Streak</small></div></div><h3 className="mt-6 font-semibold">Recommended focus</h3><div className="mt-3 flex flex-wrap gap-2">{analysis?.recommended.map(item=><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs text-violet-200" key={item}>{item}</span>)}</div></aside></div>}
 
-export default async function Page() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  if (session.user.role === "SUPER_ADMIN") redirect("/super-admin");
-  if (session.user.role === "COLLEGE_ADMIN" || session.user.role === "FACULTY") redirect("/admin");
+  {!paid&&diagnostic&&<section className="glass-card mt-6 border-violet-400/30 bg-violet-500/10"><p className="eyebrow">Activate your learning path</p><div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end"><div><h2 className="text-2xl font-semibold">Unlock Career Starter for ₹{(plan?.price_in_paise??49900)/100}</h2><p className="mt-3 max-w-3xl leading-7 text-zinc-300">Get Python, Prompt Engineering, UI/UX, ServiceNow development, Logical Reasoning, English Proficiency and your readiness retest.</p></div>{plan?<Link className="btn-primary" href={`/checkout?plan=${plan.id}`}>Pay and activate</Link>:<span className="text-sm text-amber-200">Payment activation is temporarily unavailable.</span>}</div></section>}
 
-  const rows = await prisma.$queryRaw<Row[]>`
-    SELECT profile_json
-    FROM public.student_profiles
-    WHERE student_id = ${session.user.id}::uuid
-    ORDER BY created_at DESC NULLS LAST
-    LIMIT 1
-  `;
+  {paid&&<section className="glass-card mt-6"><p className="eyebrow">Available courses</p>{resume?<div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl font-semibold">{resume.lastSubtopic??resume.course}</h2><p className="mt-2 text-sm text-zinc-400">{resume.course} · {resume.completedCount} of {resume.lessonCount} lessons</p><div className="course-progress mt-4 max-w-xl"><span style={{width:`${resume.progress}%`}}/></div></div><Link className="btn-primary" href={resume.lastSlug?`/student/learn/${resume.lastSlug}`:`/student/courses/${resume.slug}`}><BookOpen className="size-4"/>Continue learning</Link></div>:<p className="mt-4 text-zinc-400">Your paid courses are activating. Refresh in a moment.</p>}<Link className="mt-5 inline-block text-sm text-violet-300" href="/student/courses">View all available courses →</Link></section>}
 
-  const profiling = rows[0]?.profile_json?.profiling;
-  const [courses, game, dueActivities, recentResults] = await Promise.all([
-    getStudentLearningOverview(session.user.id).catch(() => []),
-    getGamification(session.user.id).catch(() => ({ xp: 0, level: 1, streak: 0, completed: 0 })),
-    prisma.$queryRaw<Array<{id:string;title:string;activity_type:string;course:string;due_at:Date|null}>>`
-      SELECT DISTINCT activity.id,activity.title,activity.activity_type,activity.course,activity.due_at
-      FROM public.learning_activities activity LEFT JOIN public.user_academic_memberships membership ON membership.user_id=${session.user.id}::uuid AND membership.active
-      LEFT JOIN public.activity_submissions submission ON submission.activity_id=activity.id AND submission.student_id=${session.user.id}::uuid
-      WHERE activity.status='published' AND (activity.student_id=${session.user.id}::uuid OR activity.batch_id=membership.batch_id)
-        AND submission.id IS NULL ORDER BY activity.due_at NULLS LAST LIMIT 5`.catch(()=>[]),
-    prisma.$queryRaw<Array<{id:string;title:string;marks:number;max_marks:number;grade:string|null}>>`
-      SELECT activity.id,activity.title,submission.marks::float marks,activity.max_marks::float max_marks,submission.grade
-      FROM public.activity_submissions submission JOIN public.learning_activities activity ON activity.id=submission.activity_id
-      WHERE submission.student_id=${session.user.id}::uuid AND submission.status='graded'
-      ORDER BY submission.graded_at DESC LIMIT 4`.catch(()=>[]),
-  ]);
-  const resume = courses.find((course) => course.lastSlug) ?? courses[0];
-
-  return (
-    <DashboardShell {...session.user}>
-      {!profiling ? (
-        <div className="glass-card">
-          <p className="eyebrow">First step</p>
-          <h2 className="mt-5 text-2xl font-semibold">Take your placement profiling test</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-            Answer 20 static questions across aptitude, logical reasoning, directions, English and reading comprehension. Taksh AI will score you using both accuracy and time.
-          </p>
-          <Link className="btn-primary mt-6" href="/profiling">Start profiling test</Link>
-        </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <section className="glass-card">
-            <p className="eyebrow">Learner profile</p>
-            <h2 className="mt-5 text-3xl font-semibold">Readiness score: {profiling.readinessScore ?? 0}%</h2>
-            <p className="mt-2 text-sm text-zinc-400">Current level: {label(profiling.level ?? "beginner")}</p>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {profiling.categoryScores?.map((item) => (
-                <div key={item.category} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex justify-between text-sm"><span>{label(item.category)}</span><strong>{item.score}%</strong></div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-violet-500" style={{ width: `${item.score}%` }} /></div>
-                  <p className="mt-2 text-xs text-zinc-500">{label(item.level)}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link className="btn-primary" href="/student/courses">Open learning path</Link>
-            </div>
-          </section>
-
-          <aside className="glass-card h-fit">
-            <div className="mb-6 grid grid-cols-2 gap-3 border-b border-white/10 pb-6">
-              <div><Trophy className="size-5 text-amber-300" /><b className="mt-2 block text-lg">Level {game.level}</b><small className="text-zinc-500">{game.xp} XP</small></div>
-              <div><Flame className="size-5 text-orange-300" /><b className="mt-2 block text-lg">{game.streak} days</b><small className="text-zinc-500">Current streak</small></div>
-            </div>
-            <h3 className="font-medium">Focus areas</h3>
-            <p className="mt-3 text-sm text-zinc-500">Weak areas</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(profiling.weakAreas?.length ? profiling.weakAreas : ["No major weak area yet"]).map((item) => <span key={item} className="rounded-full bg-red-500/10 px-3 py-1 text-xs text-red-200">{label(item)}</span>)}
-            </div>
-            <p className="mt-5 text-sm text-zinc-500">Strong areas</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(profiling.strongAreas?.length ? profiling.strongAreas : ["Build more consistency"]).map((item) => <span key={item} className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">{label(item)}</span>)}
-            </div>
-          </aside>
-          <section className="glass-card lg:col-span-2">
-            <p className="eyebrow">Continue learning</p>
-            {resume ? <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl font-semibold">{resume.lastSubtopic ?? resume.course}</h2><p className="mt-2 text-sm text-zinc-400">{resume.course} · {resume.progress}% complete</p><div className="course-progress mt-4 max-w-xl"><span style={{ width: `${resume.progress}%` }} /></div></div><Link className="btn-primary" href={resume.lastSlug ? `/student/learn/${resume.lastSlug}` : `/student/courses/${resume.slug}`}><BookOpen className="size-4" /> Continue</Link></div> : <div className="mt-5"><h2 className="text-xl font-semibold">Your learning path is being prepared.</h2><p className="mt-2 text-sm text-zinc-400">Assigned published courses will appear here.</p></div>}
-          </section>
-          <section className="glass-card"><div className="flex items-center justify-between"><h3 className="text-xl font-semibold">Due soon</h3><Link className="text-sm text-violet-300" href="/student/activities">View all</Link></div><div className="mt-4 space-y-3">{dueActivities.length?dueActivities.map(item=><Link className="block rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><b>{item.title}</b><p className="mt-1 text-xs text-zinc-500">{item.activity_type} · {item.course} · {item.due_at?item.due_at.toLocaleString():"No deadline"}</p></Link>):<p className="text-sm text-zinc-400">No outstanding activities.</p>}</div></section>
-          <section className="glass-card"><h3 className="text-xl font-semibold">Recent results</h3><div className="mt-4 space-y-3">{recentResults.length?recentResults.map(item=><Link className="flex justify-between rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><span>{item.title}</span><b>{item.marks}/{item.max_marks}{item.grade?` · ${item.grade}`:""}</b></Link>):<p className="text-sm text-zinc-400">Graded work will appear here.</p>}</div></section>
-        </div>
-      )}
-    </DashboardShell>
-  );
+  <div className="mt-6 grid gap-6 md:grid-cols-2"><section className="glass-card"><div className="flex justify-between"><h3 className="text-xl font-semibold">Due soon</h3><Link className="text-sm text-violet-300" href="/student/activities">View all</Link></div><div className="mt-4 space-y-3">{dueActivities.length?dueActivities.map(item=><Link className="block rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><b>{item.title}</b><p className="mt-1 text-xs text-zinc-500">{item.activity_type} · {item.course}</p></Link>):<p className="text-sm text-zinc-400">No outstanding activities.</p>}</div></section><section className="glass-card"><h3 className="text-xl font-semibold">Recent results</h3><div className="mt-4 space-y-3">{recentResults.length?recentResults.map(item=><Link className="flex justify-between rounded-xl border border-white/10 p-3" href={`/student/activities/${item.id}`} key={item.id}><span>{item.title}</span><b>{item.marks}/{item.max_marks}{item.grade?` · ${item.grade}`:""}</b></Link>):<p className="text-sm text-zinc-400">Graded work will appear here.</p>}</div></section></div>
+ </DashboardShell>;
 }
