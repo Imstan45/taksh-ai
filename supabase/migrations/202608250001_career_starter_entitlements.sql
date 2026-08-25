@@ -64,11 +64,11 @@ on conflict(student_id,course) do update set active=true,revoked_at=null;
 
 insert into public.courses(code,title,description,status,slug,short_description,full_description,category,difficulty,lesson_count,estimated_minutes,published)
 values
- ('PYF-001','Python Fundamentals','Learn practical Python from first principles through functions, files and a final project.','PUBLISHED','python-fundamentals','Start coding confidently with Python.','Twenty guided lessons with runnable examples, practice and knowledge checks.','Programming','Beginner',20,600,true),
- ('PEF-001','Prompt Engineering Fundamentals','Learn to design, test and improve reliable prompts for modern AI tools.','PUBLISHED','prompt-engineering-fundamentals','Turn vague requests into dependable AI instructions.','Twenty applied lessons covering context, constraints, examples, evaluation and responsible use.','AI Skills','Beginner',20,500,true),
- ('UXF-001','UI/UX Fundamentals','Learn research, interaction design, visual hierarchy, prototyping and usability testing.','PUBLISHED','ui-ux-fundamentals','Design useful, usable and accessible digital experiences.','Twenty practical lessons built around real products, common mistakes and portfolio-ready activities.','Design','Beginner',20,500,true)
+ ('PYF-001','Python Fundamentals','Learn practical Python from first principles through functions, files and a final project.','active','python-fundamentals','Start coding confidently with Python.','Twenty guided lessons with runnable examples, practice and knowledge checks.','Programming','Beginner',20,600,true),
+ ('PEF-001','Prompt Engineering Fundamentals','Learn to design, test and improve reliable prompts for modern AI tools.','active','prompt-engineering-fundamentals','Turn vague requests into dependable AI instructions.','Twenty applied lessons covering context, constraints, examples, evaluation and responsible use.','AI Skills','Beginner',20,500,true),
+ ('UXF-001','UI/UX Fundamentals','Learn research, interaction design, visual hierarchy, prototyping and usability testing.','active','ui-ux-fundamentals','Design useful, usable and accessible digital experiences.','Twenty practical lessons built around real products, common mistakes and portfolio-ready activities.','Design','Beginner',20,500,true)
 on conflict(code) do update set title=excluded.title,description=excluded.description,status=excluded.status,slug=excluded.slug,
 short_description=excluded.short_description,full_description=excluded.full_description,category=excluded.category,difficulty=excluded.difficulty,
 lesson_count=excluded.lesson_count,estimated_minutes=excluded.estimated_minutes,published=true,updated_at=now();
 
-insert into public.schema_migrations(version) values ('202608250001') on conflict do nothing;
+insert into public.schema_migrations(version,description) values ('202608250001','Career Starter plans, course metadata and entitlement assignments') on conflict do nothing;
