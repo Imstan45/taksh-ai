@@ -174,26 +174,29 @@ export async function assignStudentCourse(formData: FormData) {
     SELECT role.institution_id,institution.institution_type
     FROM public.user_roles role
     JOIN public.institutions institution ON institution.id=role.institution_id
-    JOIN public.institution_course_access access
-      ON access.institution_id = role.institution_id AND access.course = ${course} AND access.active
     WHERE role.user_id = ${studentId}::uuid AND role.role = 'STUDENT' AND role.account_status = 'active'
+      AND institution.status = 'active'
   `;
-  if (!scope[0]?.institution_id) throw new Error("The student is not active or the course is not available to their institution.");
+  if (!scope[0]?.institution_id) throw new Error("The student does not have an active institution account.");
   if (!institutionCanAccessCourse(scope[0].institution_type, course)) throw new Error("This course does not match the student's institution type.");
-  await prisma.$executeRaw`
-    INSERT INTO public.student_course_assignments (
-      student_id, institution_id, course, assigned_by, active
-    ) VALUES (
-      ${studentId}::uuid, ${scope[0].institution_id}::uuid, ${course}, ${session.user.id}::uuid, true
-    )
-    ON CONFLICT (student_id, course) DO UPDATE SET
-      active = true, revoked_at = null, assigned_by = excluded.assigned_by, assigned_at = now()
-  `;
-  await prisma.$executeRaw`
-    INSERT INTO public.audit_logs (actor_id, institution_id, action, target_type, target_id, new_values)
-    VALUES (${session.user.id}::uuid, ${scope[0].institution_id}::uuid, 'course.assigned', 'student', ${studentId},
-      ${JSON.stringify({ course })}::jsonb)
-  `;
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      INSERT INTO public.institution_course_access (institution_id, course, created_by)
+      VALUES (${scope[0].institution_id}::uuid, ${course}, ${session.user.id}::uuid)
+      ON CONFLICT (institution_id, course) DO UPDATE SET active=true,updated_at=now()
+    `;
+    await tx.$executeRaw`
+      INSERT INTO public.student_course_assignments (student_id,institution_id,course,assigned_by,active)
+      VALUES (${studentId}::uuid,${scope[0].institution_id}::uuid,${course},${session.user.id}::uuid,true)
+      ON CONFLICT (student_id,course) DO UPDATE SET
+        institution_id=excluded.institution_id,active=true,revoked_at=null,assigned_by=excluded.assigned_by,assigned_at=now()
+    `;
+    await tx.$executeRaw`
+      INSERT INTO public.audit_logs (actor_id,institution_id,action,target_type,target_id,new_values)
+      VALUES (${session.user.id}::uuid,${scope[0].institution_id}::uuid,'course.assigned','student',${studentId},
+        ${JSON.stringify({ course, institutionAccessGranted: true })}::jsonb)
+    `;
+  });
   revalidatePath("/super-admin/courses");
 }
 
