@@ -11,7 +11,7 @@ export async function GET() {
       SELECT version FROM public.schema_migrations ORDER BY version DESC LIMIT 1
     `;
     const schemaVersion = rows[0]?.version ?? null;
-    const ready = environment.valid && schemaVersion === requiredSchemaVersion;
+    const ready = environment.valid && schemaVersion !== null && schemaVersion >= requiredSchemaVersion;
     return Response.json(
       { ready, version: environment.deploymentVersion, schemaVersion, requiredSchemaVersion },
       { status: ready ? 200 : 503 },

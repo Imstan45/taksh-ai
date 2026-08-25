@@ -45,7 +45,7 @@ export async function GET() {
     database = false;
   }
 
-  const schemaCurrent = schemaVersion === requiredSchemaVersion;
+  const schemaCurrent = schemaVersion !== null && schemaVersion >= requiredSchemaVersion;
   const ready = environment.valid && database && missingTables.length === 0 && schemaCurrent;
   return Response.json({
     version: environment.deploymentVersion,
