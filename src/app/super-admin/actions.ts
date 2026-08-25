@@ -8,6 +8,7 @@ import { mainEnvironment } from "@/lib/env";
 import { invitationInputSchema } from "@/lib/invitations";
 import { createToken, hashToken } from "@/lib/security/tokens";
 import { institutionCanAccessCourse, type InstitutionType } from "@/lib/institution-content";
+import { setCareerStarterTestAccess } from "@/lib/entitlements/career-starter";
 
 async function requireSuperAdmin() {
   const session = await auth();
@@ -117,6 +118,17 @@ export async function updateUserStatus(formData: FormData) {
     VALUES (${session.user.id}::uuid, 'user.status_changed', 'user', ${userId},
       ${JSON.stringify(previous[0])}::jsonb, ${JSON.stringify({ accountStatus: status })}::jsonb)
   `;
+  revalidatePath("/super-admin/users");
+}
+
+export async function updateCareerStarterAccess(formData:FormData){
+  const session=await requireSuperAdmin();
+  const userId=String(formData.get("userId")??"");
+  const enabled=String(formData.get("enabled"))==="true";
+  const user=await prisma.$queryRaw<Array<{role:string}>>`select role::text role from public.user_roles where user_id=${userId}::uuid`;
+  if(user[0]?.role!=="STUDENT") throw new Error("Career Starter access can only be assigned to a student.");
+  await setCareerStarterTestAccess(userId,enabled,session.user.id);
+  await prisma.$executeRaw`insert into public.audit_logs(actor_id,action,target_type,target_id,new_values) values(${session.user.id}::uuid,'career_starter.admin_test_access','user',${userId},${JSON.stringify({enabled,noTransaction:true})}::jsonb)`;
   revalidatePath("/super-admin/users");
 }
 

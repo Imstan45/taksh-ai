@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { inviteUser, resendInvitation, revokeInvitation, updateUserAccess, updateUserStatus } from "../actions";
+import { inviteUser, resendInvitation, revokeInvitation, updateCareerStarterAccess, updateUserAccess, updateUserStatus } from "../actions";
 import { ActionFeedbackForm } from "@/components/feedback/action-feedback-form";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?:string; status?: string; role?: string; institution?: string; page?:string }> }) {
@@ -11,8 +11,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const filters = await searchParams;
   const page=Math.max(1,Number(filters.page)||1),limit=50,offset=(page-1)*limit;
   const [users, institutions, invitations] = await Promise.all([
-    prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; account_status: string }>>`
-      SELECT u.id, u.email, r.role::text, r.institution_id, r.account_status
+    prisma.$queryRaw<Array<{ id: string; email: string; role: string; institution_id: string | null; account_status: string; paid_access:boolean }>>`
+      SELECT u.id, u.email, r.role::text, r.institution_id, r.account_status, exists(select 1 from public.entitlements e where e.user_id=u.id and e.status='active' and e.expires_at>now()) paid_access
       FROM auth.users u JOIN public.user_roles r ON r.user_id = u.id
       WHERE (${filters.q??""}='' OR u.email ILIKE ${`%${filters.q??""}%`})
         AND (${filters.role??""}='' OR r.role::text=${filters.role??""})
@@ -79,6 +79,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             <ActionFeedbackForm action={updateUserStatus} successMessage={`${user.email} status updated successfully.`} pendingMessage="Updating account status…" confirmMessage={`${user.account_status==="active"?"Suspend":"Reactivate"} ${user.email}?`} className="mt-3 flex justify-end">
               <input type="hidden" name="userId" value={user.id}/><button name="status" value={user.account_status==="active"?"suspended":"active"} className="btn-ghost border border-white/10">{user.account_status==="active"?"Suspend account":"Reactivate account"}</button>
             </ActionFeedbackForm>
+            {user.role==="STUDENT"&&<ActionFeedbackForm action={updateCareerStarterAccess} successMessage={`${user.email} Career Starter access updated.`} pendingMessage="Updating paid test access…" className="mt-3 flex items-center justify-end gap-3">
+              <input type="hidden" name="userId" value={user.id}/><span className="text-xs text-zinc-500">Admin PAID test control · no transaction</span><button name="enabled" value={user.paid_access?"false":"true"} className="btn-ghost border border-white/10">{user.paid_access?"Remove test access":"Mark PAID for testing"}</button>
+            </ActionFeedbackForm>}
           </div>)}
         </div>
         <div className="mt-5 flex justify-between"><span className="text-sm text-zinc-500">Page {page}</span><div className="flex gap-2">{page>1&&<a className="btn-ghost" href={`?q=${encodeURIComponent(filters.q??"")}&role=${encodeURIComponent(filters.role??"")}&institution=${encodeURIComponent(filters.institution??"")}&page=${page-1}`}>Previous</a>}{users.length===limit&&<a className="btn-ghost" href={`?q=${encodeURIComponent(filters.q??"")}&role=${encodeURIComponent(filters.role??"")}&institution=${encodeURIComponent(filters.institution??"")}&page=${page+1}`}>Next</a>}</div></div>

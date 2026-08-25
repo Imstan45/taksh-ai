@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { hasCareerStarterAccess } from "@/lib/entitlements/career-starter";
 
 const OPTION_KEYS = ["A", "B", "C", "D"] as const;
 type OptionKey = (typeof OPTION_KEYS)[number];
@@ -48,6 +49,10 @@ export async function GET() {
     order by created_at desc limit 1`;
 
   if (!attempts[0]) {
+    const completed=await prisma.$queryRaw<Array<{count:bigint}>>`select count(*)::bigint count from public.diagnostic_attempts where student_id=${session.user.id}::uuid and assessment_id='taksh-skill-diagnostic-v1' and status='COMPLETED'`;
+    if(Number(completed[0]?.count??0)>0 && !(await hasCareerStarterAccess(session.user.id))){
+      return Response.json({error:"Your free Placement Readiness Test is complete. Upgrade to Career Starter to retest and improve your score.",upgradeRequired:true},{status:403});
+    }
     const selected = await prisma.$queryRaw<Array<{ id: string }>>`
       (select id from public.diagnostic_questions where active and category='logical_reasoning' order by md5(id||${session.user.id}) limit 3)
       union all
