@@ -2,7 +2,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, CircleDashed, LoaderCircle, Play, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
+import { AlertCircle, CheckCircle2, CircleDashed, Clock3, FlaskConical, Layers3, LoaderCircle, Play, RefreshCw, Sparkles } from "lucide-react";
+import { SERVICENOW_COURSE, serviceNowProgram } from "@/lib/content-factory/servicenow-curriculum";
 
 type CurriculumRow = { course: string; module: string; topic: string; subtopic: string };
 type Asset = { id: string; course: string; module: string; topic: string; subtopic: string; status: string };
@@ -139,6 +141,10 @@ export function GenerateWorkspace() {
     <div className="space-y-6">
       {notice && <div role="status" className="flex items-center justify-between rounded-xl border border-violet-400/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100"><span>{notice}</span><button onClick={() => setNotice("")}>×</button></div>}
       {!loading && (!config.supabase || !config.database) && <div role="alert" className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">Content Factory needs a working Supabase content database. Gemini is no longer required.</div>}
+      {(course===SERVICENOW_COURSE||(!course&&rows.some(row=>row.course===SERVICENOW_COURSE)))&&<section className="relative overflow-hidden rounded-3xl border border-cyan-300/20 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,.18),transparent_36%),linear-gradient(135deg,rgba(8,47,73,.78),rgba(30,27,75,.82))] p-6 sm:p-8">
+        <div className="relative z-10 grid gap-7 lg:grid-cols-[1.4fr_1fr]"><div><span className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100"><Sparkles className="size-3.5"/>New career program</span><h3 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight sm:text-3xl">ServiceNow ITSM, Development & GenAI</h3><p className="mt-3 max-w-2xl text-sm leading-6 text-cyan-50/70">{serviceNowProgram.promise} A complete career pathway authored from the supplied training blueprint, with every lesson tied to a practical task.</p><div className="mt-5 flex flex-wrap gap-2">{serviceNowProgram.tracks.map(track=><span key={track} className="rounded-full border border-white/10 bg-white/[.06] px-3 py-1.5 text-xs text-white/80">{track}</span>)}</div></div>
+        <div className="grid grid-cols-2 gap-3"><ProgramStat icon={<Clock3/>} label="Delivery" value={serviceNowProgram.duration}/><ProgramStat icon={<Layers3/>} label="Learning tracks" value="3 connected"/><ProgramStat icon={<FlaskConical/>} label="Hands-on mix" value="60% practice"/><ProgramStat icon={<CheckCircle2/>} label="Portfolio" value="3 capstones"/></div></div>
+      </section>}
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {[
           ["Syllabus topics", rows.length], ["Generated", generated.length], ["Needs review", review.length],
@@ -184,6 +190,8 @@ export function GenerateWorkspace() {
     </div>
   );
 }
+
+function ProgramStat({icon,label,value}:{icon:ReactNode;label:string;value:string}){return <div className="rounded-2xl border border-white/10 bg-black/15 p-4 text-white/90"><span className="text-cyan-300 [&>svg]:size-4">{icon}</span><small className="mt-4 block text-[10px] uppercase tracking-[.16em] text-white/40">{label}</small><strong className="mt-1 block text-sm">{value}</strong></div>}
 
 function StatusBadge({ status }: { status: string }) {
   const good = ["generated","approved","published"].includes(status);

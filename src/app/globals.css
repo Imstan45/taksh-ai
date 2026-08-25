@@ -30,6 +30,9 @@ a { text-decoration:none; }
 .learning-empty p { color:#71717a; }
 .course-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
 .course-card { border:1px solid rgba(255,255,255,.09); border-radius:1.25rem; background:linear-gradient(145deg,rgba(255,255,255,.065),rgba(255,255,255,.02)); padding:1.35rem; }
+.course-card[data-career-course="true"] { position:relative; overflow:hidden; border-color:rgba(34,211,238,.25); background:radial-gradient(circle at 100% 0,rgba(34,211,238,.16),transparent 38%),linear-gradient(145deg,rgba(8,47,73,.62),rgba(30,27,75,.52)); }
+.course-card[data-career-course="true"]:after { content:""; position:absolute; right:-2.5rem; bottom:-3rem; width:8rem; height:8rem; border:1px solid rgba(103,232,249,.15); border-radius:999px; }
+.career-course-label { display:inline-flex; margin-top:1.2rem; border:1px solid rgba(103,232,249,.18); border-radius:999px; background:rgba(34,211,238,.08); padding:.3rem .6rem; color:#a5f3fc; font-size:.65rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
 .course-card-top,.course-card-footer { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
 .course-card-top svg { color:#a78bfa; }
 .course-card-top span { color:#71717a; font-size:.75rem; }
@@ -44,6 +47,14 @@ a { text-decoration:none; }
 .continue-hero p { color:#a1a1aa; }
 .continue-hero .course-progress { width:min(36rem,65vw); margin-top:1.4rem; }
 .module-stack { display:grid; gap:1rem; }
+.servicenow-course-banner { display:grid; gap:1.5rem; margin-bottom:1.25rem; overflow:hidden; border:1px solid rgba(34,211,238,.2); border-radius:1.4rem; background:radial-gradient(circle at 90% 0,rgba(34,211,238,.18),transparent 35%),linear-gradient(135deg,rgba(8,47,73,.7),rgba(30,27,75,.7)); padding:1.5rem; }
+.servicenow-course-banner small { color:#67e8f9; font-size:.68rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+.servicenow-course-banner h3 { max-width:42rem; margin:.55rem 0 .4rem; font-size:1.35rem; }
+.servicenow-course-banner p { color:rgba(207,250,254,.62); font-size:.8rem; }
+.servicenow-course-banner>div:last-child { display:grid; gap:.55rem; }
+.servicenow-course-banner span { display:flex; align-items:center; gap:.75rem; border:1px solid rgba(255,255,255,.08); border-radius:.8rem; background:rgba(0,0,0,.12); padding:.65rem .75rem; color:#e0f2fe; font-size:.78rem; }
+.servicenow-course-banner span b { color:#67e8f9; font-size:.65rem; }
+@media(min-width:900px){.servicenow-course-banner{grid-template-columns:1.35fr 1fr;align-items:center;padding:1.8rem}.servicenow-course-banner>div:last-child{grid-template-columns:1fr}}
 .module-card { overflow:hidden; border:1px solid rgba(255,255,255,.09); border-radius:1.25rem; background:rgba(255,255,255,.03); }
 .module-heading { display:flex; align-items:center; gap:1rem; border-bottom:1px solid rgba(255,255,255,.08); padding:1.2rem 1.4rem; }
 .module-heading>span { display:grid; width:2.6rem; height:2.6rem; place-items:center; border-radius:.8rem; background:#7c3aed; font-weight:700; }

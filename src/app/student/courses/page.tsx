@@ -22,8 +22,7 @@ export default async function StudentCoursesPage() {
         <div><Award /><span><b>{game.completed} lessons</b><small>Completed</small></span></div>
       </div>
       {courses.length === 0 ? <div className="learning-empty"><BookOpen /><h3>You do not have an assigned course yet.</h3><p>Your learning path will appear here after your course is assigned.</p></div> :
-      <div className="course-grid">{courses.map((course) => <article className="course-card" key={course.course}><div className="course-card-top"><BookOpen /><span>{course.moduleCount} modules</span></div><h3>{course.course}</h3><p>{course.completedCount} of {course.lessonCount} published lessons completed</p><div className="course-progress"><span style={{ width: `${course.progress}%` }} /></div><div className="course-card-footer"><b>{course.progress}%</b><Link href={`/student/courses/${course.slug}`}>{course.progress ? "Resume learning" : "Start course"}</Link></div></article>)}</div>}
+      <div className="course-grid">{courses.map((course) => <article className="course-card" data-career-course={course.course.startsWith("ServiceNow")||undefined} key={course.course}><div className="course-card-top"><BookOpen /><span>{course.moduleCount} modules</span></div>{course.course.startsWith("ServiceNow")&&<small className="career-course-label">Career pathway · 3 capstones</small>}<h3>{course.course}</h3><p>{course.completedCount} of {course.lessonCount} published lessons completed</p><div className="course-progress"><span style={{ width: `${course.progress}%` }} /></div><div className="course-card-footer"><b>{course.progress}%</b><Link href={`/student/courses/${course.slug}`}>{course.progress ? "Resume learning" : "Start course"}</Link></div></article>)}</div>}
     </DashboardShell>
   );
 }
-
