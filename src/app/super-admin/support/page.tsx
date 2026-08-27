@@ -1,0 +1,13 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { prisma } from "@/lib/prisma";
+import { setSupportTicketStatus } from "./actions";
+
+type Ticket={id:string;ticket_number:string;requester_name:string|null;requester_email:string;requester_role:string;category:string;subject:string;message:string;status:string;email_notified:boolean;created_at:Date};
+export default async function SupportInbox(){
+ const session=await auth();if(!session?.user||session.user.role!=="SUPER_ADMIN")redirect("/login?callbackUrl=/super-admin/support");
+ const tickets=await prisma.$queryRaw<Ticket[]>`select id,ticket_number,requester_name,requester_email,requester_role,category,subject,message,status,email_notified,created_at from public.support_tickets order by (status='open') desc,created_at desc limit 100`;
+ return <DashboardShell {...session.user}><div className="flex items-end justify-between gap-4"><div><h2 className="text-3xl font-semibold">Support inbox</h2><p className="mt-2 text-zinc-400">Lightweight requests from students, faculty and administrators.</p></div><span className="rounded-full bg-violet-500/15 px-3 py-1 text-sm text-violet-200">{tickets.filter(x=>x.status==='open').length} open</span></div>
+ <div className="mt-7 grid gap-4">{tickets.length?tickets.map(ticket=><article className="rounded-2xl border border-white/10 bg-white/[.035] p-5" key={ticket.id}><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><b>{ticket.subject}</b><span className={`rounded-full px-2 py-0.5 text-xs ${ticket.status==='open'?'bg-amber-500/15 text-amber-200':'bg-emerald-500/15 text-emerald-200'}`}>{ticket.status}</span></div><p className="mt-1 text-xs text-zinc-500">{ticket.ticket_number} · {ticket.category} · {ticket.created_at.toLocaleString()}</p></div><form action={setSupportTicketStatus}><input type="hidden" name="id" value={ticket.id}/><input type="hidden" name="status" value={ticket.status==='open'?'resolved':'open'}/><button className="btn-ghost border border-white/10">Mark {ticket.status==='open'?'resolved':'open'}</button></form></div><p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-zinc-300">{ticket.message}</p><p className="mt-4 text-xs text-zinc-500">{ticket.requester_name??'User'} · {ticket.requester_email} · {ticket.requester_role.replaceAll('_',' ')} · Email {ticket.email_notified?'sent':'not configured'}</p></article>):<div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-zinc-500">No support requests yet.</div>}</div></DashboardShell>;
+}

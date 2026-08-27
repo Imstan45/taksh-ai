@@ -11,6 +11,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/assessment", label: "Practice" },
     { href: "/programs", label: "Programs" },
     { href: "/profile", label: "Profile" },
+    { href: "/support", label: "Support" },
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
@@ -21,6 +22,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/faculty/assessments", label: "Assessments" },
     { href: "/admin/faculty/reports", label: "Reports" },
     { href: "/notifications", label: "Notifications" },
+    { href: "/support", label: "Support" },
   ],
   COLLEGE_ADMIN: [
     { href: "/admin", label: "College administration" },
@@ -33,6 +35,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/admin/courses", label: "Courses" },
     { href: "/admin/reports", label: "Reports" },
     { href: "/notifications", label: "Notifications" },
+    { href: "/support", label: "Support" },
   ],
   SUPER_ADMIN: [
     { href: "/super-admin", label: "Platform dashboard" },

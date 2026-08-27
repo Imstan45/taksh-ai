@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpenCheck, Building2, ClipboardList, Gauge, KeyRound, Menu, Package, Settings, ShieldCheck, Sparkles, UserSearch, Users } from "lucide-react";
+import { BarChart3, BookOpenCheck, Building2, ClipboardList, Gauge, KeyRound, LifeBuoy, Menu, Package, Settings, ShieldCheck, Sparkles, UserSearch, Users } from "lucide-react";
 
 const items = [
   [Gauge, "Dashboard", "/super-admin"],
@@ -17,6 +17,7 @@ const items = [
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
   [ShieldCheck, "Governance", "/super-admin/governance"],
   [ClipboardList, "Audit history", "/super-admin/audit"],
+  [LifeBuoy, "Support inbox", "/super-admin/support"],
   [Settings, "Settings", "/superadmin/content-factory/settings"],
 ] as const;
 
