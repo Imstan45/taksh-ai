@@ -49,7 +49,7 @@ alter table public.diagnostic_questions add column if not exists approved boolea
 update public.diagnostic_questions set technical_track='general-it' where category='database_technical' and technical_track is null;
 with verification_pool as (
   select id from (
-    select id,row_number() over(partition by category order by difficulty desc,id) position
+    select id,category,row_number() over(partition by category order by difficulty desc,id) position
     from public.diagnostic_questions where active and approved
   ) ranked where (category='quantitative_aptitude' and position<=6)
     or (category='logical_reasoning' and position<=5)
