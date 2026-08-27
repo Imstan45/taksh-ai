@@ -1,1 +1,2 @@
-import{redirect}from"next/navigation";export default function Pricing(){redirect("/programs")}
+import{redirect}from"next/navigation";
+export default function Pricing(){redirect("/programs")}
