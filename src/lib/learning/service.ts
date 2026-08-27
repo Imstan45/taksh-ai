@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { publishedLessonSchema, type PublishedLessonContent } from "./schema";
 import { applySequentialLocks, slugify } from "./logic";
+import { getAccessibleCourses } from "@/lib/commerce/access";
 export { applySequentialLocks, slugify } from "./logic";
 
 type OverviewRow = {
@@ -26,6 +27,9 @@ export type LearningCourse = {
 };
 
 export async function getStudentLearningOverview(studentId: string): Promise<LearningCourse[]> {
+  const accessible=await getAccessibleCourses(studentId);
+  if(!accessible.length)return [];
+  const courseNames=[...new Set(accessible.map(item=>item.course))];
   const rows = await prisma.$queryRaw<OverviewRow[]>`
     SELECT
       a.course,
@@ -49,11 +53,9 @@ export async function getStudentLearningOverview(studentId: string): Promise<Lea
         ORDER BY p2.last_viewed_at DESC NULLS LAST LIMIT 1
       ) AS last_viewed_at
     FROM public.taksh_content_assets a
-    JOIN public.student_course_assignments sca
-      ON sca.student_id = ${studentId}::uuid AND sca.course = a.course AND sca.active = true
     LEFT JOIN public.student_content_progress p
       ON p.student_id = ${studentId}::uuid AND p.subtopic = a.subtopic
-    WHERE a.status = 'published'
+    WHERE a.status = 'published' AND a.course=ANY(${courseNames}::text[])
     GROUP BY a.course
     ORDER BY a.course
   `;
@@ -92,10 +94,7 @@ type CurriculumLessonRow = {
 export type CurriculumLesson = CurriculumLessonRow & { locked: boolean };
 
 export async function getAssignedCourseLessons(studentId: string, courseSlug: string) {
-  const assigned = await prisma.$queryRaw<Array<{ course: string }>>`
-    SELECT course FROM public.student_course_assignments
-    WHERE student_id = ${studentId}::uuid AND active = true
-  `;
+  const assigned=await getAccessibleCourses(studentId);
   const course = assigned.find((item) => slugify(item.course) === courseSlug)?.course;
   if (!course) return null;
 
@@ -146,11 +145,11 @@ export async function getPublishedLessonBySubtopic(
       COALESCE(a.content_version, 1) AS content_version, a.content,
       p.status AS progress_status, p.progress_percentage, p.last_section
     FROM public.taksh_content_assets a
-    JOIN public.student_course_assignments sca
-      ON sca.student_id = ${studentId}::uuid AND sca.course = a.course AND sca.active = true
     LEFT JOIN public.student_content_progress p
       ON p.student_id = ${studentId}::uuid AND p.subtopic = a.subtopic
     WHERE a.slug = ${subtopicSlug} AND a.status = 'published'
+      AND (exists(select 1 from public.student_course_assignments assignment where assignment.student_id=${studentId}::uuid and assignment.course=a.course and assignment.active and assignment.revoked_at is null and (assignment.starts_at is null or assignment.starts_at<=now()) and (assignment.due_at is null or assignment.due_at>now()))
+        or exists(select 1 from public.entitlements entitlement join public.product_courses mapping on mapping.product_id=entitlement.product_id where entitlement.user_id=${studentId}::uuid and mapping.course=a.course and entitlement.status='active' and entitlement.starts_at<=now() and (entitlement.expires_at is null or entitlement.expires_at>now())))
     ORDER BY COALESCE(a.content_version, 1) DESC, a.published_at DESC NULLS LAST, a.updated_at DESC
     LIMIT 1
   `;

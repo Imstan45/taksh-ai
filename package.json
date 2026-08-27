@@ -15,6 +15,7 @@
     "db:generate": "prisma generate",
     "db:pull": "prisma db pull",
     "diagnostic:seed": "node scripts/generate-diagnostic-bank.mjs",
+    "diagnostic:audit": "node scripts/audit-diagnostic-bank.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

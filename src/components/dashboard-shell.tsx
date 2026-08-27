@@ -6,18 +6,11 @@ import { SuperAdminNav } from "@/components/super-admin/super-admin-nav";
 
 const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   STUDENT: [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/diagnostic", label: "10-min Diagnostic" },
-    { href: "/student/courses", label: "My courses" },
-    { href: "/student/activities", label: "Activities" },
-    { href: "/continue-learning", label: "Continue learning" },
-    { href: "/learning-style", label: "Learning style" },
-    { href: "/assessment", label: "Assessment" },
-    { href: "/student/assessments", label: "Assigned assessments" },
-    { href: "/student/feedback", label: "Feedback" },
-    { href: "/notifications", label: "Notifications" },
-    { href: "/pricing", label: "Upgrade" },
-    { href: "/billing", label: "Billing" },
+    { href: "/dashboard", label: "Home" },
+    { href: "/student/courses", label: "My Learning" },
+    { href: "/assessment", label: "Practice" },
+    { href: "/programs", label: "Programs" },
+    { href: "/profile", label: "Profile" },
   ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
@@ -71,11 +64,9 @@ export function DashboardShell({ name, email, role, children }: { name?: string 
           </form>
         </div>
       </nav>
-      <section className="mx-auto max-w-6xl py-16">
-        <div className="flex items-center gap-3 text-violet-400"><RoleIcon className="size-5" /><span className="text-sm font-medium">Secure {role.replaceAll("_", " ").toLowerCase()} workspace</span></div>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight">Welcome, {name?.split(" ")[0] ?? "user"}.</h1>
-        <p className="mt-3 text-zinc-400">{email}</p>
-        <div className="mt-10">{children}</div>
+      <section className="mx-auto max-w-6xl py-10 sm:py-14">
+        {role!=="STUDENT"&&<><div className="flex items-center gap-3 text-violet-400"><RoleIcon className="size-5" /><span className="text-sm font-medium">Secure {role.replaceAll("_", " ").toLowerCase()} workspace</span></div><h1 className="mt-5 text-4xl font-semibold tracking-tight">Welcome, {name?.split(" ")[0] ?? "user"}.</h1><p className="mt-3 text-zinc-400">{email}</p></>}
+        <div className={role==="STUDENT"?"":"mt-10"}>{children}</div>
       </section>
       </div></div>
     </main>

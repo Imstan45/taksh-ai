@@ -24,11 +24,9 @@ export async function POST(request: Request) {
   const assets = await prisma.$queryRaw<Array<{ course: string; module: string; topic: string; subtopic: string; content_version: number }>>`
     SELECT a.course,a.module,a.topic,a.subtopic,a.content_version
     FROM public.taksh_content_assets a
-    JOIN public.student_course_assignments sca
-      ON sca.course=a.course AND sca.student_id=${session.user.id}::uuid AND sca.active
-      AND sca.revoked_at IS NULL AND (sca.starts_at IS NULL OR sca.starts_at<=now())
-      AND (sca.due_at IS NULL OR sca.due_at>=now())
     WHERE a.id=${input.contentId}::uuid AND a.status='published'
+      AND (exists(select 1 from public.student_course_assignments assignment where assignment.student_id=${session.user.id}::uuid and assignment.course=a.course and assignment.active and assignment.revoked_at is null and (assignment.starts_at is null or assignment.starts_at<=now()) and (assignment.due_at is null or assignment.due_at>now()))
+        or exists(select 1 from public.entitlements entitlement join public.product_courses mapping on mapping.product_id=entitlement.product_id where entitlement.user_id=${session.user.id}::uuid and mapping.course=a.course and entitlement.status='active' and entitlement.starts_at<=now() and (entitlement.expires_at is null or entitlement.expires_at>now())))
     LIMIT 1
   `;
   const asset = assets[0];

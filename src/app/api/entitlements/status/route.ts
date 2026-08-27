@@ -1,1 +1,14 @@
-import { auth } from "@/auth";import { prisma } from "@/lib/prisma";export async function GET(){const s=await auth();if(!s?.user)return Response.json({error:"Unauthorized"},{status:401});const rows=await prisma.$queryRaw`select e.starts_at,e.expires_at,e.status,p.code,p.name from public.entitlements e join public.plans p on p.id=e.plan_id where e.user_id=${s.user.id}::uuid and e.status='active' and e.expires_at>now() order by e.expires_at desc limit 1`;return Response.json({premium:Boolean((rows as unknown[])[0]),entitlement:(rows as unknown[])[0]||null});}
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user) return Response.json({error:"Unauthorized"},{status:401});
+  const entitlements = await prisma.$queryRaw<Array<{starts_at:Date;expires_at:Date|null;status:string;code:string;name:string;grant_source:string}>>`
+    select entitlement.starts_at,entitlement.expires_at,entitlement.status,product.code,product.name,entitlement.grant_source
+    from public.entitlements entitlement join public.products product on product.id=entitlement.product_id
+    where entitlement.user_id=${session.user.id}::uuid and entitlement.status='active'
+      and entitlement.starts_at<=now() and (entitlement.expires_at is null or entitlement.expires_at>now())
+    order by entitlement.starts_at desc`;
+  return Response.json({premium:entitlements.length>0,entitlements});
+}

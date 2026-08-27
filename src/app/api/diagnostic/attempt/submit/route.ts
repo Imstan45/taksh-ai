@@ -1,77 +1,17 @@
-import { z } from "zod";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
-import { diagnosticAnalysis, performanceLabel } from "@/lib/diagnostic/scoring";
-
-const schema = z.object({ attemptId: z.string().uuid() });
-const OPTION_KEYS = ["A", "B", "C", "D"] as const;
-type OptionKey = (typeof OPTION_KEYS)[number];
-
-export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Invalid attempt" }, { status: 400 });
-
-  return prisma.$transaction(async (tx) => {
-    const attempts = await tx.$queryRaw<Array<{
-      id: string;
-      question_ids: string[];
-      option_orders: Record<string, OptionKey[]>;
-      answers: Record<string, OptionKey>;
-      started_at: Date;
-      expires_at: Date;
-      status: string;
-    }>>`select id,question_ids,option_orders,answers,started_at,expires_at,status from public.diagnostic_attempts where id=${parsed.data.attemptId}::uuid and student_id=${session.user.id}::uuid for update`;
-    const attempt = attempts[0];
-    if (!attempt) return Response.json({ error: "Attempt not found" }, { status: 404 });
-    if (attempt.status !== "IN_PROGRESS") return Response.json({ attemptId: attempt.id, completed: true });
-
-    const questions = await tx.$queryRaw<Array<{ id: string; category: string; correct_answer: OptionKey; explanation: string; question_text: string; option_a: string; option_b: string; option_c: string; option_d: string }>>`
-      select id,category,correct_answer,explanation,question_text,option_a,option_b,option_c,option_d from public.diagnostic_questions where id=any(${attempt.question_ids}::text[])`;
-    const scores: Record<string, { correct: number; total: number }> = {};
-    let correct = 0;
-    const originalSelections: Record<string, OptionKey | null> = {};
-    for (const question of questions) {
-      scores[question.category] ??= { correct: 0, total: 0 };
-      scores[question.category].total++;
-      const displaySelection = attempt.answers[question.id];
-      const displayIndex = displaySelection ? OPTION_KEYS.indexOf(displaySelection) : -1;
-      const originalSelection = displayIndex >= 0
-        ? (attempt.option_orders[question.id] ?? OPTION_KEYS)[displayIndex]
-        : null;
-      originalSelections[question.id] = originalSelection;
-      if (originalSelection === question.correct_answer) {
-        scores[question.category].correct++;
-        correct++;
-      }
-    }
-
-    const expired = Date.now() >= attempt.expires_at.getTime();
-    const time = Math.min(600, Math.max(0, Math.round((Date.now() - attempt.started_at.getTime()) / 1000)));
-    await tx.$executeRaw`update public.diagnostic_attempts set submitted_at=now(),time_taken_seconds=${time},score=${correct},category_scores=${JSON.stringify(scores)}::jsonb,status=${expired ? "TIME_EXPIRED" : "COMPLETED"},updated_at=now() where id=${attempt.id}::uuid`;
-
-    const unanswered = 10 - Object.keys(attempt.answers).length;
-    const access=await tx.$queryRaw<Array<{paid:boolean}>>`select exists(select 1 from public.entitlements e join public.plan_course_entitlements m on m.plan_id=e.plan_id where e.user_id=${session.user.id}::uuid and e.status='active' and e.expires_at>now()) paid`;
-    return Response.json({
-      attemptId: attempt.id,
-      score: correct,
-      total: 10,
-      incorrect: 10 - correct - unanswered,
-      unanswered,
-      timeTakenSeconds: time,
-      status: expired ? "TIME_EXPIRED" : "COMPLETED",
-      categories: Object.entries(scores).map(([category, value]) => ({ category, ...value, percentage: Math.round(value.correct / value.total * 100), label: performanceLabel(Math.round(value.correct / value.total * 100)) })),
-      analysis: diagnosticAnalysis(scores),
-      paidAccess:Boolean(access[0]?.paid),
-      review: process.env.SHOW_DIAGNOSTIC_ANSWERS === "true" ? questions.map((question) => ({
-        id: question.id,
-        question: question.question_text,
-        selected: originalSelections[question.id],
-        correct: question.correct_answer,
-        explanation: question.explanation,
-        options: { A: question.option_a, B: question.option_b, C: question.option_c, D: question.option_d },
-      })) : undefined,
-    });
-  });
-}
+import {z} from "zod";import{auth}from"@/auth";import{prisma}from"@/lib/prisma";import{classifyReadiness,readinessLabels}from"@/lib/readiness/service";
+const schema=z.object({attemptId:z.string().uuid()});const KEYS=["A","B","C","D"]as const;type Key=(typeof KEYS)[number];
+export async function POST(request:Request){const session=await auth();if(!session?.user||session.user.role!=="STUDENT")return Response.json({error:"Unauthorized"},{status:401});const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return Response.json({error:"Invalid attempt"},{status:400});
+ return prisma.$transaction(async tx=>{const attempt=(await tx.$queryRaw<Array<{id:string;question_ids:string[];option_orders:Record<string,Key[]>;answers:Record<string,Key>;started_at:Date;expires_at:Date;status:string;technical_track:string;stage:"primary"|"verification"}>>`select id,question_ids,option_orders,answers,started_at,expires_at,status,technical_track,stage from public.diagnostic_attempts where id=${parsed.data.attemptId}::uuid and student_id=${session.user.id}::uuid for update`)[0];if(!attempt)return Response.json({error:"Attempt not found"},{status:404});if(attempt.status!=="IN_PROGRESS")return Response.json({error:"This attempt was already submitted."},{status:409});
+ const questions=await tx.$queryRaw<Array<{id:string;category:string;correct_answer:Key}>>`select id,category,correct_answer from public.diagnostic_questions where id=any(${attempt.question_ids}::text[])`;const sections:Record<string,{correct:number;total:number}>={};let correct=0;for(const q of questions){sections[q.category]??={correct:0,total:0};sections[q.category].total++;const display=attempt.answers[q.id],index=display?KEYS.indexOf(display):-1,original=index>=0?(attempt.option_orders[q.id]??KEYS)[index]:null;if(original===q.correct_answer){sections[q.category].correct++;correct++}}
+ const duration=Math.max(0,Math.min(2700,Math.round((Date.now()-attempt.started_at.getTime())/1000))),score=Math.round(correct/questions.length*100),unanswered=questions.length-Object.keys(attempt.answers).length;
+ const config=(await tx.$queryRaw<Array<{placement_ready_min:number;nearly_ready_min:number;development_required_min:number;suspicious_speed_seconds:number;integrity_invalidation_events:number;verification_score_min:number}>>`select placement_ready_min,nearly_ready_min,development_required_min,suspicious_speed_seconds,integrity_invalidation_events,verification_score_min from public.readiness_assessment_configs where code='placement-readiness-v1'`)[0];
+ const [{count:integrityCount}]=await tx.$queryRaw<Array<{count:bigint}>>`select count(*)::bigint count from public.assessment_integrity_events where attempt_id=${attempt.id}::uuid and event_type in('visibility_hidden','window_blur','fullscreen_exit','navigation_attempt')`;
+ const decision=classifyReadiness({score,durationSeconds:duration,integrityEvents:Number(integrityCount),stage:attempt.stage},{placementReadyMin:config.placement_ready_min,nearlyReadyMin:config.nearly_ready_min,developmentRequiredMin:config.development_required_min,suspiciousSpeedSeconds:config.suspicious_speed_seconds,integrityInvalidationEvents:config.integrity_invalidation_events,verificationScoreMin:config.verification_score_min});
+ const ranked=Object.entries(sections).map(([category,value])=>({category,...value,percentage:Math.round(value.correct/value.total*100)})).sort((a,b)=>a.percentage-b.percentage),weakest=ranked[0]?.category??null,strongest=ranked.at(-1)?.category??null,multipleWeak=ranked.filter(item=>item.percentage<70).length>1;
+ const code=multipleWeak?"complete-placement-bundle":weakest==="database_technical"?(attempt.technical_track==="general-it"?"complete-placement-bundle":attempt.technical_track):"aptitude-english";const recommendation=(await tx.$queryRaw<Array<{id:string;code:string;name:string;price_in_paise:number;description:string}>>`select id,code,name,price_in_paise,description from public.products where code=${code} and active limit 1`)[0]??null;
+ await tx.$executeRaw`update public.diagnostic_attempts set submitted_at=now(),time_taken_seconds=${duration},average_seconds_per_question=${duration/questions.length},score=${correct},category_scores=${JSON.stringify(sections)}::jsonb,status=${Date.now()>=attempt.expires_at.getTime()?"TIME_EXPIRED":"COMPLETED"},suspicious_speed=${decision.suspiciousSpeed},integrity_status=${decision.integrityStatus},readiness_status=${decision.status},verification_status=${decision.verificationStatus},invalidation_reason=${decision.status==="ASSESSMENT_INVALID"?"integrity_requirement_not_met":null},updated_at=now() where id=${attempt.id}::uuid`;
+ await tx.$executeRaw`insert into public.readiness_scores(user_id,attempt_id,overall_score,skill_scores,strongest_area,improvement_area,recommended_product_id,measured_at,readiness_status,technical_track,duration_seconds,suspicious_speed) values(${session.user.id}::uuid,${attempt.id}::uuid,${score},${JSON.stringify(sections)}::jsonb,${strongest},${weakest},${recommendation?.id??null}::uuid,now(),${decision.status},${attempt.technical_track},${duration},${decision.suspiciousSpeed}) on conflict(attempt_id) do nothing`;
+ await tx.$executeRaw`insert into public.candidate_readiness(user_id,latest_attempt_id,technical_track,readiness_status,current_score,verification_status,employer_eligible,updated_at) values(${session.user.id}::uuid,${attempt.id}::uuid,${attempt.technical_track},${decision.status},${score},${decision.verificationStatus},false,now()) on conflict(user_id) do update set latest_attempt_id=excluded.latest_attempt_id,technical_track=excluded.technical_track,readiness_status=excluded.readiness_status,current_score=excluded.current_score,verification_status=excluded.verification_status,employer_eligible=false,employer_eligible_at=null,updated_at=now()`;
+ await tx.$executeRaw`insert into public.candidate_readiness_history(user_id,attempt_id,readiness_status,score,section_scores,technical_track,integrity_status,suspicious_speed) values(${session.user.id}::uuid,${attempt.id}::uuid,${decision.status},${score},${JSON.stringify(sections)}::jsonb,${attempt.technical_track},${decision.integrityStatus},${decision.suspiciousSpeed}) on conflict(attempt_id) do nothing`;
+ await tx.$executeRaw`insert into public.product_events(user_id,event_name,product_id,properties) values(${session.user.id}::uuid,${attempt.stage==="verification"?"verification_completed":"diagnostic_completed"},${recommendation?.id??null}::uuid,${JSON.stringify({score,status:decision.status,track:attempt.technical_track})}::jsonb)`;
+ return Response.json({attemptId:attempt.id,score:correct,total:questions.length,readinessScore:score,readinessStatus:decision.status,readinessLabel:readinessLabels[decision.status],verificationRequired:decision.verificationStatus==="REQUIRED",integrityStatus:decision.integrityStatus,integrityEvents:Number(integrityCount),incorrect:questions.length-correct-unanswered,unanswered,timeTakenSeconds:duration,strongestArea:strongest,improvementArea:weakest,categories:ranked,recommendation});});}

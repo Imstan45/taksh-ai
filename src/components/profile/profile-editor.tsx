@@ -88,6 +88,7 @@ export function ProfileEditor({ user, initial }: { user: { name: string; email: 
             <div className="mt-5 grid gap-2">
               <Link className="btn-primary w-full" href="/continue-learning"><BookOpen className="size-4" /> Continue learning</Link>
               <Link className="btn-ghost w-full border border-white/10" href="/student/courses">View my courses</Link>
+              <Link className="btn-ghost w-full border border-white/10" href="/billing">Purchase history</Link>
             </div>
           </div>
         </aside>

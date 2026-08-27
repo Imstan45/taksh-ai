@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenCheck, Building2, ClipboardList, Gauge, Menu, Settings, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BarChart3, BookOpenCheck, Building2, ClipboardList, Gauge, KeyRound, Menu, Package, Settings, ShieldCheck, Sparkles, UserSearch, Users } from "lucide-react";
 
 const items = [
   [Gauge, "Dashboard", "/super-admin"],
   [Building2, "Institutions", "/super-admin/institutions"],
   [Users, "Users & invitations", "/super-admin/users"],
+  [UserSearch, "Candidate pipeline", "/super-admin/candidates"],
+  [Package, "Products", "/super-admin/products"],
+  [KeyRound, "Access", "/super-admin/access"],
   [BookOpenCheck, "Course operations", "/super-admin/courses"],
+  [Sparkles, "Campaigns", "/super-admin/campaigns"],
+  [BarChart3, "Analytics", "/super-admin/analytics"],
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
   [ShieldCheck, "Governance", "/super-admin/governance"],
   [ClipboardList, "Audit history", "/super-admin/audit"],
