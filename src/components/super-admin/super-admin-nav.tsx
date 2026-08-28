@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpenCheck, Building2, ClipboardList, CreditCard, Gauge, KeyRound, LifeBuoy, Menu, Package, Settings, ShieldCheck, Sparkles, UserSearch, Users } from "lucide-react";
+import { BarChart3, BookOpenCheck, Building2, ClipboardList, CreditCard, Gauge, KeyRound, LifeBuoy, Menu, Package, Settings, ShieldCheck, Sparkles, Trophy, UserSearch, Users } from "lucide-react";
 
 const items = [
   [Gauge, "Dashboard", "/super-admin"],
@@ -14,6 +14,7 @@ const items = [
   [CreditCard, "Payments", "/super-admin/payments"],
   [BookOpenCheck, "Course operations", "/super-admin/courses"],
   [Sparkles, "Campaigns", "/super-admin/campaigns"],
+  [Trophy, "Sales Challenge", "/super-admin/sales-challenge"],
   [BarChart3, "Analytics", "/super-admin/analytics"],
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
   [ShieldCheck, "Governance", "/super-admin/governance"],

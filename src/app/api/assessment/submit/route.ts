@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         VALUES(${session.user.id}::uuid,${ticket.questionIds}::uuid[],${JSON.stringify(result.results)}::jsonb,
           ${result.score},${result.maxScore},${result.percentage},${sessions[0].started_at},${timeUsed}) RETURNING id
       `;
+      await tx.$executeRaw`UPDATE public.sales_referral_attributions SET assessment_completed_at=coalesce(assessment_completed_at,now()),updated_at=now() WHERE registered_user_id=${session.user.id}::uuid AND validity_status<>'invalid'`;
       return Response.json({ attemptId: inserted[0].id, ...result });
     });
   } catch (error) {

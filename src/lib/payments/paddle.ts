@@ -61,7 +61,7 @@ export async function refundPaddlePayment(transactionId:string,fullRefund:boolea
  await prisma.$transaction(async tx=>{
   const payments=await tx.$queryRaw<Array<{id:string;payment_order_id:string}>>`select id,payment_order_id from public.payments where provider='paddle' and provider_payment_id=${transactionId} for update`;
   const payment=payments[0];if(!payment)return;
-  await tx.$executeRaw`update public.payments set status=${fullRefund?'refunded':'partially_refunded'},updated_at=now() where id=${payment.id}::uuid`;
+  await tx.$executeRaw`update public.payments set status=${fullRefund?'refunded':'partially_refunded'},refunded_amount_in_paise=case when ${fullRefund} then amount_in_paise else refunded_amount_in_paise end,updated_at=now() where id=${payment.id}::uuid`;
   if(fullRefund){
    await tx.$executeRaw`update public.payment_orders set status='refunded',updated_at=now() where id=${payment.payment_order_id}::uuid`;
    await tx.$executeRaw`update public.entitlements set status='refunded',updated_at=now() where payment_id=${payment.id}::uuid and status='active'`;

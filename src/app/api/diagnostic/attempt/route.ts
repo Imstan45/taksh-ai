@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { markSalesAttribution } from "@/lib/sales-challenge/attribution";
 
 const beginSchema = z.object({ technicalTrack: z.enum(["python-full-stack", "java-full-stack", "servicenow", "general-it"]),mode:z.enum(["primary","verification"]).default("primary") });
 const OPTION_KEYS = ["A", "B", "C", "D"] as const;
@@ -44,5 +45,6 @@ export async function POST(request:Request){
   const duration=verification?config.verification_duration_seconds:config.duration_seconds,stage=verification?"verification":"primary",assessmentId=verification?"placement-verification-v1":"placement-readiness-v1";
   const attempt=(await prisma.$queryRaw<Attempt[]>`insert into public.diagnostic_attempts(student_id,assessment_id,config_code,technical_track,stage,parent_attempt_id,question_ids,option_orders,status,duration_seconds,expires_at) values(${session.user.id}::uuid,${assessmentId},'placement-readiness-v1',${parsed.data.technicalTrack},${stage},${parentId}::uuid,${ids}::text[],${JSON.stringify(orders)}::jsonb,'IN_PROGRESS',${duration},now()+make_interval(secs=>${duration})) returning id,question_ids,option_orders,answers,started_at,expires_at,status,technical_track,duration_seconds,stage,readiness_status`)[0];
   await prisma.$executeRaw`insert into public.product_events(user_id,event_name,properties) values(${session.user.id}::uuid,${verification?"verification_started":"diagnostic_started"},${JSON.stringify({assessment:assessmentId,technicalTrack:parsed.data.technicalTrack})}::jsonb)`;
+  await markSalesAttribution(session.user.id,"assessment_started");
   return responseFor(attempt);
 }
