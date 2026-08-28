@@ -8,7 +8,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ refe
   const existingToken = (request.headers.get("cookie") ?? "").split(";").map(item => item.trim()).find(item => item.startsWith(`${SALES_REFERRAL_COOKIE}=`))?.split("=").slice(1).join("=");
   if (existingToken) {
     await prisma.$executeRaw`update public.sales_referral_attributions set total_visits=total_visits+1,last_visit_at=now(),updated_at=now() where visitor_token_hash=${referralTokenHash(decodeURIComponent(existingToken))}`;
-    return Response.redirect(`${origin}/?sales_referral=active`, 302);
+    return Response.redirect(`${origin}/assessment/placement-readiness?sales_referral=active`, 302);
   }
   const participant = (await prisma.$queryRaw<Array<{ id: string; challenge_id: string; user_id: string; end_at: Date }>>`select participant.id,participant.challenge_id,participant.user_id,challenge.end_at from public.sales_challenge_participants participant join public.sales_challenges challenge on challenge.id=participant.challenge_id where participant.referral_code=${referralCode.toUpperCase()} and participant.status='active' and challenge.status='active' and now() between challenge.start_at and challenge.end_at`)[0];
   if (!participant) return Response.redirect(`${origin}/sales-challenge?referral=invalid`, 302);
@@ -23,7 +23,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ refe
       }
     }
   });
-  const response = Response.redirect(`${origin}/?sales_referral=active`, 302);
+  const response = Response.redirect(`${origin}/assessment/placement-readiness?sales_referral=active`, 302);
   response.headers.append("Set-Cookie", `${SALES_REFERRAL_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Expires=${participant.end_at.toUTCString()}`);
   return response;
 }
