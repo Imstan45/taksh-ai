@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "content:sync:servicenow": "tsx scripts/sync-servicenow-curriculum.ts",
+    "content:generate:launch-catalogue": "tsx scripts/generate-launch-catalogue-migration.ts",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
