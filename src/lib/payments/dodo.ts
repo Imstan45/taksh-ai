@@ -1,6 +1,7 @@
 import DodoPayments from "dodopayments";
 import { prisma } from "@/lib/prisma";
 import {dodoEnvironment,dodoProductId} from "@/lib/payments/dodo-config";
+import {recordReferralSale,updateReferralRefund} from "@/lib/referrals/sales";
 export {dodoEnvironment,dodoProductId} from "@/lib/payments/dodo-config";
 export function dodoClient(){
   const bearerToken=process.env.DODO_PAYMENTS_API_KEY,webhookKey=process.env.DODO_PAYMENTS_WEBHOOK_KEY;
@@ -26,6 +27,9 @@ export async function activateDodoPayment(input:{reference:string;paymentId:stri
    on conflict(user_id,product_id) where status='active' and product_id is not null do nothing`;
   await tx.$executeRaw`insert into public.product_events(user_id,event_name,product_id,properties) values(${order.user_id}::uuid,'payment_success',${order.product_id}::uuid,${JSON.stringify({provider:"dodo",paymentId:input.paymentId,amountInPaise:order.amount_in_paise})}::jsonb)`;
   await tx.$executeRaw`update public.campaign_attributions set purchased_at=now(),purchased_product_id=${order.product_id}::uuid,revenue_in_paise=${order.amount_in_paise} where id=(select id from public.campaign_attributions where user_id=${order.user_id}::uuid order by first_touched_at desc limit 1)`;
+  await recordReferralSale(tx,{paymentId:payments[0].id,orderId:order.id,provider:"dodo",providerPaymentReference:input.paymentId});
   return {duplicate:false};
  });
 }
+
+export async function refundDodoPayment(paymentReference:string,amount:number,isPartial:boolean){return prisma.$transaction(async tx=>{const payment=(await tx.$queryRaw<Array<{id:string;payment_order_id:string;amount_in_paise:number;refunded_amount_in_paise:number}>>`select id,payment_order_id,amount_in_paise,refunded_amount_in_paise from public.payments where provider='dodo' and provider_payment_id=${paymentReference} for update`)[0];if(!payment)return;const refunded=Math.min(payment.amount_in_paise,Math.max(payment.refunded_amount_in_paise,amount)),full=!isPartial||refunded>=payment.amount_in_paise;await tx.$executeRaw`update public.payments set status=${full?'refunded':'partially_refunded'},refunded_amount_in_paise=${refunded},updated_at=now() where id=${payment.id}::uuid`;if(full){await tx.$executeRaw`update public.payment_orders set status='refunded',updated_at=now() where id=${payment.payment_order_id}::uuid`;await tx.$executeRaw`update public.entitlements set status='refunded',updated_at=now() where payment_id=${payment.id}::uuid and status='active'`;}await updateReferralRefund(tx,payment.id,refunded,full)})}

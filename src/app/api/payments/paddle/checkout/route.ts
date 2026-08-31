@@ -2,6 +2,7 @@ import {z} from "zod";
 import {auth} from "@/auth";
 import {prisma} from "@/lib/prisma";
 import {findPaddlePrice} from "@/lib/payments/paddle";
+import {currentSalesAttribution} from "@/lib/sales-challenge/attribution";
 
 const schema=z.object({productId:z.string().uuid(),attribution:z.record(z.string(),z.string().max(200)).optional()});
 
@@ -13,9 +14,9 @@ export async function POST(request:Request){
  const owned=await prisma.$queryRaw<Array<{owned:boolean}>>`select exists(select 1 from public.entitlements where user_id=${session.user.id}::uuid and product_id=${product.id}::uuid and status='active' and (expires_at is null or expires_at>now())) owned`;
  if(owned[0]?.owned)return Response.json({error:"You already own this product.",alreadyOwned:true},{status:409});
  let priceId:string;try{priceId=await findPaddlePrice({paddleProductId:product.paddle_product_id,amountInPaise:product.price_in_paise,currency:product.currency});}catch(error){console.error("Paddle price lookup failed",error);return Response.json({error:"Paddle payments are not configured for this product"},{status:503});}
- const reference=`TAKSH-${Date.now()}-${crypto.randomUUID().slice(0,8)}`;
+ const reference=`TAKSH-${Date.now()}-${crypto.randomUUID().slice(0,8)}`,salesAttribution=await currentSalesAttribution(session.user.id);
  await prisma.$transaction(async tx=>{
-  await tx.$executeRaw`insert into public.payment_orders(user_id,product_id,internal_order_reference,provider,amount_in_paise,currency,status,attribution_json) values(${session.user.id}::uuid,${product.id}::uuid,${reference},'paddle',${product.price_in_paise},${product.currency},'created',${JSON.stringify(parsed.data.attribution||{})}::jsonb)`;
+  await tx.$executeRaw`insert into public.payment_orders(user_id,product_id,internal_order_reference,provider,amount_in_paise,currency,status,attribution_json,sales_attribution_id) values(${session.user.id}::uuid,${product.id}::uuid,${reference},'paddle',${product.price_in_paise},${product.currency},'created',${JSON.stringify(parsed.data.attribution||{})}::jsonb,${salesAttribution}::uuid)`;
   await tx.$executeRaw`insert into public.product_events(user_id,event_name,product_id,properties) values(${session.user.id}::uuid,'checkout_started',${product.id}::uuid,${JSON.stringify({...parsed.data.attribution,provider:"paddle"})}::jsonb)`;
  });
  const origin=process.env.NEXT_PUBLIC_APP_URL||new URL(request.url).origin;

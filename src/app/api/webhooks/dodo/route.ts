@@ -1,5 +1,5 @@
 import {prisma} from "@/lib/prisma";
-import {activateDodoPayment,dodoClient} from "@/lib/payments/dodo";
+import {activateDodoPayment,dodoClient,refundDodoPayment} from "@/lib/payments/dodo";
 
 export const runtime="nodejs";
 
@@ -16,7 +16,7 @@ export async function POST(request:Request){
    await activateDodoPayment({reference,paymentId:event.data.payment_id,amount:event.data.total_amount,currency:event.data.currency,providerProductId});
   }else if(event.type==="payment.failed"||event.type==="payment.cancelled"){
    const metadataReference=event.data.metadata?.taksh_order_reference,reference=typeof metadataReference==="string"?metadataReference:"";if(reference)await prisma.$executeRaw`update public.payment_orders set status=${event.type==="payment.failed"?'failed':'cancelled'},updated_at=now() where provider='dodo' and internal_order_reference=${reference}`;
-  }
+  }else if(event.type==="refund.succeeded"){const refund=event.data as unknown as {payment_id?:string;amount?:number|null;is_partial?:boolean};if(refund.payment_id)await refundDodoPayment(refund.payment_id,refund.amount??0,refund.is_partial===true)}
   await prisma.$executeRaw`update public.payment_webhook_events set processing_status='processed',processed_at=now() where id=${inserted[0].id}::uuid`;
   return Response.json({received:true});
  }catch(error){await prisma.$executeRaw`delete from public.payment_webhook_events where id=${inserted[0].id}::uuid`;console.error("Dodo webhook processing failed",error);return Response.json({error:"Processing failed"},{status:500});}

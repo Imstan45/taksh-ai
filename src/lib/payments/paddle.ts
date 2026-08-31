@@ -1,4 +1,5 @@
 import {createHmac,timingSafeEqual} from "node:crypto";
+import {recordReferralSale,updateReferralRefund} from "@/lib/referrals/sales";
 
 type PaddlePrice={
  id:string;
@@ -52,19 +53,23 @@ export async function activatePaddlePayment(input:{reference:string;transactionI
    on conflict(user_id,product_id) where status='active' and product_id is not null do nothing`;
   await tx.$executeRaw`insert into public.product_events(user_id,event_name,product_id,properties) values(${order.user_id}::uuid,'payment_success',${order.product_id}::uuid,${JSON.stringify({provider:"paddle",transactionId:input.transactionId,amountInPaise:order.amount_in_paise})}::jsonb)`;
   await tx.$executeRaw`update public.campaign_attributions set purchased_at=now(),purchased_product_id=${order.product_id}::uuid,revenue_in_paise=${order.amount_in_paise} where id=(select id from public.campaign_attributions where user_id=${order.user_id}::uuid order by first_touched_at desc limit 1)`;
+  await recordReferralSale(tx,{paymentId:payments[0].id,orderId:order.id,provider:"paddle",providerPaymentReference:input.transactionId});
   return {duplicate:false};
  });
 }
 
-export async function refundPaddlePayment(transactionId:string,fullRefund:boolean){
+export async function refundPaddlePayment(transactionId:string,fullRefund:boolean,refundAmount=0){
  const {prisma}=await import("@/lib/prisma");
  await prisma.$transaction(async tx=>{
-  const payments=await tx.$queryRaw<Array<{id:string;payment_order_id:string}>>`select id,payment_order_id from public.payments where provider='paddle' and provider_payment_id=${transactionId} for update`;
+  const payments=await tx.$queryRaw<Array<{id:string;payment_order_id:string;amount_in_paise:number}>>`select id,payment_order_id,amount_in_paise from public.payments where provider='paddle' and provider_payment_id=${transactionId} for update`;
   const payment=payments[0];if(!payment)return;
-  await tx.$executeRaw`update public.payments set status=${fullRefund?'refunded':'partially_refunded'},refunded_amount_in_paise=case when ${fullRefund} then amount_in_paise else refunded_amount_in_paise end,updated_at=now() where id=${payment.id}::uuid`;
+  const refunded=fullRefund?payment.amount_in_paise:Math.min(payment.amount_in_paise,Math.max(0,refundAmount));
+  await tx.$executeRaw`update public.payments set status=${fullRefund?'refunded':'partially_refunded'},refunded_amount_in_paise=case when ${fullRefund} then amount_in_paise else least(amount_in_paise,refunded_amount_in_paise+${refunded}) end,updated_at=now() where id=${payment.id}::uuid`;
   if(fullRefund){
    await tx.$executeRaw`update public.payment_orders set status='refunded',updated_at=now() where id=${payment.payment_order_id}::uuid`;
    await tx.$executeRaw`update public.entitlements set status='refunded',updated_at=now() where payment_id=${payment.id}::uuid and status='active'`;
   }
+  const cumulative=(await tx.$queryRaw<Array<{refunded_amount_in_paise:number}>>`select refunded_amount_in_paise from public.payments where id=${payment.id}::uuid`)[0]?.refunded_amount_in_paise??refunded;
+  await updateReferralRefund(tx,payment.id,cumulative,fullRefund);
  });
 }

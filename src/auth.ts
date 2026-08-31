@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (roleError || !roleRecord || roleRecord.account_status !== "active") return null;
 
         const storedRole = roleRecord?.role;
-        if (!["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
+        if (!["STUDENT", "SALES_REP", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
         const role = storedRole as UserRole;
 
         return {
@@ -93,7 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return Response.redirect(new URL(session?.user ? roleHome(session.user.role) : "/login", request.nextUrl));
       }
       if (path === "/assessment/job-readiness") return true;
-      if (!path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
+      if (!path.startsWith("/sales-rep") && !path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
       if (!session?.user) {
         const loginUrl = new URL("/login", request.nextUrl);
         loginUrl.searchParams.set("callbackUrl", path);
@@ -102,6 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user.mustChangePassword) return Response.redirect(new URL("/change-password", request.nextUrl));
       if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
+      if (path.startsWith("/sales-rep")) return session.user.role === "SALES_REP";
       return session.user.role === "STUDENT";
     },
   },

@@ -1,4 +1,4 @@
-import { BookOpen, Building2, GraduationCap, LogOut, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpen, BriefcaseBusiness, Building2, GraduationCap, LogOut, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "@/auth";
 import type { UserRole } from "@/types/roles";
@@ -11,6 +11,10 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/assessment", label: "Practice" },
     { href: "/programs", label: "Programs" },
     { href: "/profile", label: "Profile" },
+    { href: "/support", label: "Support" },
+  ],
+  SALES_REP: [
+    { href: "/sales-rep", label: "Sales dashboard" },
     { href: "/support", label: "Support" },
   ],
   FACULTY: [
@@ -46,6 +50,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
 
 const roleIcon = {
   STUDENT: GraduationCap,
+  SALES_REP: BriefcaseBusiness,
   FACULTY: BookOpen,
   COLLEGE_ADMIN: Building2,
   SUPER_ADMIN: Sparkles,

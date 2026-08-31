@@ -15,6 +15,7 @@ const items = [
   [BookOpenCheck, "Course operations", "/super-admin/courses"],
   [Sparkles, "Campaigns", "/super-admin/campaigns"],
   [Trophy, "Sales Challenge", "/super-admin/sales-challenge"],
+  [Users, "Sales Reps", "/super-admin/sales-reps"],
   [BarChart3, "Analytics", "/super-admin/analytics"],
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
   [ShieldCheck, "Governance", "/super-admin/governance"],

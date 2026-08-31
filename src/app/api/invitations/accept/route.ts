@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (error || !data.user?.email) return Response.json({ error: "Invitation session is invalid." }, { status: 401 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid invitation." }, { status: 400 });
-  const invitations = await prisma.$queryRaw<Array<{ id: string; email: string; role: "STUDENT" | "FACULTY" | "COLLEGE_ADMIN"; institution_id: string; expires_at: Date; status: string }>>`
+  const invitations = await prisma.$queryRaw<Array<{ id: string; email: string; role: "STUDENT" | "SALES_REP" | "FACULTY" | "COLLEGE_ADMIN"; institution_id: string | null; expires_at: Date; status: string }>>`
     SELECT id, email, role::text, institution_id, expires_at, status
     FROM public.invitations
     WHERE id = ${parsed.data.invitationId}::uuid
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         authorization_version = authorization_version + 1, updated_at = now()
       WHERE user_id = ${data.user.id}::uuid
     `;
+    if (invitation.role === "SALES_REP") await tx.$executeRaw`update public.sales_reps set status='active',joined_at=coalesce(joined_at,now()),updated_at=now() where user_id=${data.user.id}::uuid`;
     await tx.$executeRaw`INSERT INTO public.audit_logs (actor_id, action, target_type, target_id) VALUES (${data.user.id}::uuid, 'invitation.accepted', 'invitation', ${invitation.id})`;
     return true;
   });

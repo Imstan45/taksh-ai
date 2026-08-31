@@ -5,7 +5,7 @@ export const runtime="nodejs";
 
 type PaddleEvent={
  event_id:string;event_type:string;
- data:{id:string;status?:string;action?:string;type?:string;transaction_id?:string;currency_code?:string;custom_data?:Record<string,unknown>|null;items?:Array<{price?:{product_id?:string;unit_price?:{amount?:string;currency_code?:string}}}>};
+ data:{id:string;status?:string;action?:string;type?:string;transaction_id?:string;currency_code?:string;totals?:{total?:string};custom_data?:Record<string,unknown>|null;items?:Array<{price?:{product_id?:string;unit_price?:{amount?:string;currency_code?:string}}}>};
 };
 
 export async function POST(request:Request){
@@ -23,7 +23,7 @@ export async function POST(request:Request){
   }else if(event.event_type==="transaction.payment_failed"||event.event_type==="transaction.canceled"){
    const reference=typeof event.data.custom_data?.taksh_order_reference==="string"?event.data.custom_data.taksh_order_reference:"";if(reference)await prisma.$executeRaw`update public.payment_orders set status=${event.event_type==="transaction.payment_failed"?'failed':'cancelled'},updated_at=now() where provider='paddle' and internal_order_reference=${reference}`;
   }else if((event.event_type==="adjustment.created"||event.event_type==="adjustment.updated")&&(event.data.action==="refund"||event.data.action==="chargeback")&&event.data.status==="approved"&&event.data.transaction_id){
-   await refundPaddlePayment(event.data.transaction_id,event.data.type==="full"||event.data.action==="chargeback");
+   await refundPaddlePayment(event.data.transaction_id,event.data.type==="full"||event.data.action==="chargeback",Number(event.data.totals?.total??0));
   }
   await prisma.$executeRaw`update public.payment_webhook_events set processing_status='processed',processed_at=now() where id=${inserted[0].id}::uuid`;
   return Response.json({received:true});
