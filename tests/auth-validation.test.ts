@@ -25,6 +25,7 @@ describe("authentication validation", () => {
     expect(roleHome("FACULTY")).toBe("/admin/faculty");
     expect(roleHome("COLLEGE_ADMIN")).toBe("/admin");
     expect(roleHome("SUPER_ADMIN")).toBe("/super-admin");
+    expect(roleHome("SALES_REP")).toBe("/sales/dashboard");
   });
   it("does not allow a callback URL to cross role boundaries", () => {
     expect(roleCanAccessPath("SUPER_ADMIN", "/superadmin/content-factory")).toBe(true);

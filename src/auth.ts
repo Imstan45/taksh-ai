@@ -29,11 +29,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .select("role,account_status,authorization_version")
           .eq("user_id", data.user.id)
           .maybeSingle();
-        if (roleError || !roleRecord || roleRecord.account_status !== "active") return null;
+        if (roleError || !roleRecord) return null;
 
         const storedRole = roleRecord?.role;
         if (!["STUDENT", "SALES_REP", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
         const role = storedRole as UserRole;
+        const canAuthenticate = roleRecord.account_status === "active" ||
+          (role === "SALES_REP" && ["pending", "suspended", "rejected"].includes(roleRecord.account_status));
+        if (!canAuthenticate) return null;
 
         return {
           id: data.user.id,
@@ -63,9 +66,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .select("role,account_status,authorization_version")
           .eq("user_id", token.id)
           .maybeSingle();
-        if (!data || data.account_status !== "active") {
-          token.accountStatus = data?.account_status ?? "disabled";
-        } else {
+        if (!data) token.accountStatus = "disabled";
+        else {
           token.role = data.role as UserRole;
           token.accountStatus = data.account_status;
           token.authorizationVersion = data.authorization_version;
@@ -83,6 +85,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     authorized({ auth: session, request }) {
       const path = request.nextUrl.pathname;
+      if (["/sales", "/sales/register", "/sales/login"].includes(path)) return true;
+      if (session?.user?.role === "SALES_REP" && session.user.accountStatus !== "active") {
+        if (path === "/sales/pending") return true;
+        return Response.redirect(new URL("/sales/pending", request.nextUrl));
+      }
       if (session?.user && session.user.accountStatus !== "active") return false;
       if (path === "/change-password") {
         if (!session?.user) return Response.redirect(new URL("/login?callbackUrl=/change-password", request.nextUrl));
@@ -93,16 +100,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return Response.redirect(new URL(session?.user ? roleHome(session.user.role) : "/login", request.nextUrl));
       }
       if (path === "/assessment/job-readiness") return true;
-      if (!path.startsWith("/sales-rep") && !path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
+      if (!path.startsWith("/sales") && !path.startsWith("/sales-rep") && !path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
       if (!session?.user) {
-        const loginUrl = new URL("/login", request.nextUrl);
+        const loginUrl = new URL(path.startsWith("/sales") || path.startsWith("/sales-rep") ? "/sales/login" : "/login", request.nextUrl);
         loginUrl.searchParams.set("callbackUrl", path);
         return Response.redirect(loginUrl);
       }
       if (session.user.mustChangePassword) return Response.redirect(new URL("/change-password", request.nextUrl));
       if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
-      if (path.startsWith("/sales-rep")) return session.user.role === "SALES_REP";
+      if (path.startsWith("/sales") || path.startsWith("/sales-rep")) return session.user.role === "SALES_REP";
       return session.user.role === "STUDENT";
     },
   },

@@ -16,6 +16,20 @@ button, input { font: inherit; }
 .field:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.14); }
 .field::placeholder { color:#71717a; }
 a { text-decoration:none; }
+.sales-field { width:100%; min-height:2.75rem; border:1px solid #d4d4d8; border-radius:.375rem; background:#fff; padding:.65rem .75rem; color:#18181b; outline:none; transition:border-color .15s,box-shadow .15s; }
+.sales-field:focus { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.1); }
+.sales-field::placeholder { color:#a1a1aa; }
+.sales-primary-button,.sales-secondary-button { display:inline-flex; min-height:2.65rem; align-items:center; justify-content:center; gap:.5rem; border-radius:.375rem; padding:.6rem 1rem; font-size:.875rem; font-weight:600; transition:background .15s,border-color .15s; }
+.sales-primary-button { border:1px solid #18181b; background:#18181b; color:#fff; }
+.sales-primary-button:hover { background:#27272a; }
+.sales-primary-button:disabled { cursor:not-allowed; opacity:.55; }
+.sales-secondary-button { border:1px solid #d4d4d8; background:#fff; color:#27272a; }
+.sales-secondary-button:hover { border-color:#a1a1aa; background:#fafafa; }
+.sales-status-badge { display:inline-flex; width:max-content; border:1px solid; border-radius:999px; padding:.3rem .6rem; font-size:.7rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.sales-status-active { border-color:#a7f3d0; background:#ecfdf5; color:#047857; }
+.sales-status-pending { border-color:#fde68a; background:#fffbeb; color:#a16207; }
+.sales-status-suspended { border-color:#fecaca; background:#fef2f2; color:#b91c1c; }
+.sales-status-rejected { border-color:#d4d4d8; background:#f4f4f5; color:#52525b; }
 .student-page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:1.5rem; margin-bottom:1.5rem; }
 .student-page-heading h2 { margin:.9rem 0 0; font-size:clamp(2rem,4vw,3.6rem); line-height:1; letter-spacing:-.04em; }
 .student-page-heading p:last-child { margin:.8rem 0 0; color:#a1a1aa; }

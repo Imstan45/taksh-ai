@@ -23,6 +23,19 @@ export const registerSchema = z.object({
   utm_source:z.string().max(200).optional(),utm_medium:z.string().max(200).optional(),utm_campaign:z.string().max(200).optional(),utm_content:z.string().max(200).optional(),utm_term:z.string().max(200).optional(),referral_code:z.string().max(100).optional(),
   source:z.string().max(200).optional(),medium:z.string().max(200).optional(),campaign:z.string().max(200).optional(),campaign_id:z.string().uuid().optional(),landing_page:z.string().max(500).optional(),referral_url:z.string().max(500).optional(),
 });
+export const salesRepRegisterSchema = z.object({
+  fullName: z.string().trim().min(2).max(100).transform((value) => value.replace(/[<>]/g, "")),
+  email,
+  phone: z.string().trim().min(7).max(24).regex(/^[+()\-\s0-9]+$/, "Enter a valid phone number"),
+  organization: z.string().trim().min(2).max(160).transform((value) => value.replace(/[<>]/g, "")),
+  city: z.string().trim().min(2).max(100).transform((value) => value.replace(/[<>]/g, "")),
+  networkReach: z.coerce.number().int().min(1).max(1_000_000),
+  password: passwordSchema,
+  confirmPassword: z.string().min(1).max(128),
+}).refine((value) => value.password === value.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 export const emailSchema = z.object({ email });
 export const tokenSchema = z.object({ token: z.string().min(32).max(256) });
 export const resetPasswordSchema = tokenSchema.extend({ password: passwordSchema });
