@@ -4,10 +4,10 @@ import { launchCatalogueCurriculum, launchCourses } from "../src/lib/content-fac
 import { takshContentSchema } from "../src/lib/content-factory/schemas/taksh-content-schema";
 
 describe("launch course catalogue", () => {
-  it("defines ten unique, tagged launch courses with eight modules each", () => {
-    expect(launchCourses).toHaveLength(10);
-    expect(new Set(launchCourses.map((course) => course.code)).size).toBe(10);
-    expect(new Set(launchCourses.map((course) => course.slug)).size).toBe(10);
+  it("defines eleven unique, tagged launch courses with eight modules each", () => {
+    expect(launchCourses).toHaveLength(11);
+    expect(new Set(launchCourses.map((course) => course.code)).size).toBe(11);
+    expect(new Set(launchCourses.map((course) => course.slug)).size).toBe(11);
     for (const course of launchCourses) {
       expect(course.skills.length).toBeGreaterThanOrEqual(5);
       expect(course.modules).toHaveLength(8);
@@ -16,7 +16,7 @@ describe("launch course catalogue", () => {
   });
 
   it("provides 25 meaningful lessons and nine assessments per course", () => {
-    expect(launchCatalogueCurriculum).toHaveLength(250);
+    expect(launchCatalogueCurriculum).toHaveLength(275);
     for (const course of launchCourses) {
       const lessons = launchCatalogueCurriculum.filter((lesson) => lesson.course === course.title);
       const moduleChecks = lessons.filter((lesson) => lesson.topic === "Assess");
