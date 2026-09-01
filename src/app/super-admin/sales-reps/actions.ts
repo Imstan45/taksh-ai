@@ -35,7 +35,7 @@ export async function changeSalesRepStatus(formData:FormData){
     const code=current.referral_code??(status==="active"?salesReferralCode(current.full_name):null);
     await tx.$executeRaw`update public.sales_reps set status=${status},referral_code=${code},joined_at=case when ${status}='active' then coalesce(joined_at,now()) else joined_at end,approved_by=case when ${status}='active' then ${admin.id}::uuid else approved_by end,updated_at=now() where id=${id}::uuid`;
     await tx.$executeRaw`update public.user_roles set account_status=${status},authorization_version=authorization_version+1,updated_at=now() where user_id=${current.user_id}::uuid`;
-    await tx.$executeRaw`insert into public.audit_logs(actor_id,action,target_type,target_id,old_values,new_values) values(${admin.id}::uuid,'sales_rep.status_changed','sales_rep',${id},${JSON.stringify({status:current.status})}::jsonb,${JSON.stringify({status})}::jsonb)`;
+    await tx.$executeRaw`insert into public.audit_logs(actor_id,action,target_type,target_id,previous_values,new_values) values(${admin.id}::uuid,'sales_rep.status_changed','sales_rep',${id},${JSON.stringify({status:current.status})}::jsonb,${JSON.stringify({status})}::jsonb)`;
   });refresh();
 }
 
