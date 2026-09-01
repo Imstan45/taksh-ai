@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { SALES_REFERRAL_COOKIE, referralTokenHash } from "@/lib/sales-challenge/attribution";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request, { params }: { params: Promise<{ referralCode: string }> }) {
   const code = (await params).referralCode.trim().toUpperCase();
@@ -27,7 +28,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ refe
       if (!prior) await tx.$executeRaw`update public.sales_referral_attributions set registered_user_id=${session.user.id}::uuid,registered_at=now(),is_qualified_registration=true where id=${attribution.id}::uuid`;
     }
   });
-  const response = Response.redirect(`${origin}/?referral=active`, 302);
-  response.headers.append("Set-Cookie", `${SALES_REFERRAL_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 86400}`);
+  const response = NextResponse.redirect(`${origin}/?referral=active`, 302);
+  response.cookies.set(SALES_REFERRAL_COOKIE, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 86400,
+  });
   return response;
 }
