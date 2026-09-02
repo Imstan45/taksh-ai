@@ -1,4 +1,5 @@
 import type { AuthoredCurriculumItem } from "@/lib/content-factory/authored-curriculum";
+import { nonTechnicalCourses } from "@/lib/content-factory/non-technical-courses";
 
 export type LaunchModule = {
   title: string;
@@ -24,7 +25,7 @@ export type LaunchCourse = {
 
 const m=(title:string,skills:string[],concept:string,workflow:string,workplace:string,tool:string,mistake:string,interview:string):LaunchModule=>({title,skills,concept,workflow,workplace,tool,mistake,interview});
 
-export const launchCourses:LaunchCourse[]=[
+export const launchCourses:LaunchCourse[]=[...nonTechnicalCourses,
   {code:"BPO-001",title:"Customer Support & BPO Career Readiness",slug:"customer-support-bpo-career-readiness",category:"Career Readiness",description:"Prepare for voice, non-voice, customer support and entry-level operations roles through practical communication and customer-handling work.",outcome:"Demonstrate clear workplace English, structured customer handling, accurate written support and confident role-specific interview performance through realistic practice.",skills:["Workplace English","Customer Service","Spoken Communication","Active Listening","Problem Solving","Voice Support","Chat Support","Email Support","Interview Readiness"],modules:[
     m("Understanding the Industry",["BPO Operations","Career Awareness"],"BPO providers operate defined business processes for clients, while support teams resolve customer needs through voice, chat, email or blended channels under quality and compliance controls.","Identify the process type, customer, channel, responsibilities, shift expectations and performance measures before evaluating a role.","Compare a domestic e-commerce chat role with an international banking voice role and identify the different language, schedule, verification and compliance expectations.","Role description and process-comparison checklist","Assuming every BPO role is telecalling or accepting a role without understanding its process and shift requirements.","Explain voice, non-voice and blended processes and what employers evaluate in a fresher."),
     m("Workplace English Fundamentals",["Workplace English","Grammar"],"Workplace English uses complete, accurate and easy-to-understand sentences that communicate action, ownership and timing without slang or unnecessary complexity.","State the subject and action clearly, choose the correct tense, remove fillers, check agreement and finish with a specific next step.","Rewrite an unclear server-error response as: The payment is delayed because the service is unavailable. I will check its status and update you within ten minutes.","Grammar review and response-rewrite checklist","Using memorised sophisticated words, translated sentence order or fillers that make a simple message harder to understand.","Correct a weak customer response and explain why the revision is clearer."),
