@@ -4,8 +4,8 @@ import type { UserRole } from "@/types/roles";
 
 declare module "next-auth" {
   interface User { role: UserRole; rememberMe?: boolean; accountStatus?: string; authorizationVersion?: number; mustChangePassword?: boolean }
-  interface Session { user: { id: string; role: UserRole; accountStatus?: string; authorizationVersion?: number; mustChangePassword?: boolean; name?: string | null; email?: string | null; image?: string | null } }
+  interface Session { user: { id: string; role: UserRole; accountStatus?: string; authorizationVersion?: number; mustChangePassword?: boolean; sessionInvalidated?: boolean; name?: string | null; email?: string | null; image?: string | null } }
 }
 declare module "next-auth/jwt" {
-  interface JWT { id?: string; role?: UserRole; rememberMe?: boolean; accountStatus?: string; authorizationVersion?: number; mustChangePassword?: boolean }
+  interface JWT { id?: string; role?: UserRole; rememberMe?: boolean; accountStatus?: string; authorizationVersion?: number; mustChangePassword?: boolean; sessionInvalidated?: boolean }
 }

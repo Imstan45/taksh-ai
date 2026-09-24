@@ -60,14 +60,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accountStatus = user.accountStatus;
         token.authorizationVersion = user.authorizationVersion;
         token.mustChangePassword = user.mustChangePassword;
+        token.sessionInvalidated = false;
       } else if (token.id) {
         const { data } = await createSupabaseAdminClient()
           .from("user_roles")
           .select("role,account_status,authorization_version")
           .eq("user_id", token.id)
           .maybeSingle();
-        if (!data) token.accountStatus = "disabled";
-        else {
+        if (!data || (token.authorizationVersion !== undefined && data.authorization_version !== token.authorizationVersion)) {
+          token.sessionInvalidated = true;
+        } else {
           token.role = data.role as UserRole;
           token.accountStatus = data.account_status;
           token.authorizationVersion = data.authorization_version;
@@ -81,10 +83,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.accountStatus = token.accountStatus;
       session.user.authorizationVersion = token.authorizationVersion;
       session.user.mustChangePassword = token.mustChangePassword;
+      session.user.sessionInvalidated = token.sessionInvalidated;
       return session;
     },
     authorized({ auth: session, request }) {
       const path = request.nextUrl.pathname;
+      if (session?.user?.sessionInvalidated) {
+        const loginUrl = new URL("/login", request.nextUrl);
+        loginUrl.searchParams.set("reason", "session-revoked");
+        return Response.redirect(loginUrl);
+      }
       if (["/sales", "/sales/register", "/sales/login"].includes(path)) return true;
       if (session?.user?.role === "SALES_REP" && session.user.accountStatus !== "active") {
         if (path === "/sales/pending") return true;

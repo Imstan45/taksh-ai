@@ -3,6 +3,7 @@ import Link from "next/link";
 import { signOut } from "@/auth";
 import type { UserRole } from "@/types/roles";
 import { SuperAdminNav } from "@/components/super-admin/super-admin-nav";
+import { SignOutAllDevicesButton } from "@/components/auth/sign-out-all-devices-button";
 
 const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
   STUDENT: [
@@ -67,6 +68,7 @@ export function DashboardShell({ name, email, role, children }: { name?: string 
         <div><p className="font-semibold">Taksh AI</p><p className="text-xs text-zinc-500">{role.replaceAll("_", " ")}</p></div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {role!=="SUPER_ADMIN"&&navigation[role].map((item) => <Link key={item.href} prefetch={false} className="btn-ghost border border-white/10" href={item.href}>{item.label}</Link>)}
+          <SignOutAllDevicesButton />
           <form action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
             <button className="btn-ghost gap-2" type="submit"><LogOut className="size-4" /> Sign out</button>
           </form>
