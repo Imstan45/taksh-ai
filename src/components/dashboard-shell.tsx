@@ -9,6 +9,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/dashboard", label: "Home" },
     { href: "/student/courses", label: "My Learning" },
     { href: "/assessment", label: "Practice" },
+    { href: "/student/interview-arena", label: "Interview Arena" },
     { href: "/programs", label: "Programs" },
     { href: "/profile", label: "Profile" },
     { href: "/support", label: "Support" },

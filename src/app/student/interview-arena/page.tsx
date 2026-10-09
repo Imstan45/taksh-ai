@@ -1,0 +1,2 @@
+import{redirect}from"next/navigation";import{auth}from"@/auth";import{DashboardShell}from"@/components/dashboard-shell";import{InterviewArena}from"@/components/interview-arena/interview-arena";
+export default async function Page(){const session=await auth();if(!session?.user||session.user.role!=="STUDENT")redirect("/login?callbackUrl=/student/interview-arena");return <DashboardShell {...session.user}><InterviewArena/></DashboardShell>}

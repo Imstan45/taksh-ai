@@ -1,0 +1,13 @@
+import type {Prisma} from "@/generated/prisma/client";
+import {prisma} from "@/lib/prisma";
+
+export async function fulfillInterviewPurchase(tx:Prisma.TransactionClient,input:{userId:string;productId:string;paymentId:string}){
+ const pkg=(await tx.$queryRaw<Array<{id:string;interview_count:number;validity_days:number}>>`select p.id,p.interview_count,p.validity_days from public.interview_packages p where p.product_id=${input.productId}::uuid and p.active`)[0];
+ if(!pkg)return false;
+ const purchase=(await tx.$queryRaw<Array<{id:string;expires_at:Date}>>`insert into public.interview_purchases(user_id,package_id,payment_id,credits_granted,expires_at) values(${input.userId}::uuid,${pkg.id}::uuid,${input.paymentId}::uuid,${pkg.interview_count},now()+make_interval(days=>${pkg.validity_days})) on conflict(payment_id) do nothing returning id,expires_at`)[0];
+ if(purchase)await tx.$executeRaw`insert into public.interview_credit_ledger(user_id,purchase_id,event_type,available_delta,reserved_delta,idempotency_key,expires_at) values(${input.userId}::uuid,${purchase.id}::uuid,'grant',${pkg.interview_count},0,${`purchase:${input.paymentId}`},${purchase.expires_at}) on conflict(idempotency_key) do nothing`;
+ return true;
+}
+export async function creditBalance(userId:string,tx:Prisma.TransactionClient|typeof prisma=prisma){const row=(await tx.$queryRaw<Array<{available:bigint;reserved:bigint}>>`select coalesce(sum(available_delta),0) available,coalesce(sum(reserved_delta),0) reserved from public.interview_credit_ledger where user_id=${userId}::uuid and (expires_at is null or expires_at>now() or event_type<>'grant')`)[0];return{available:Number(row?.available??0),reserved:Number(row?.reserved??0)}}
+export async function reserveCredit(tx:Prisma.TransactionClient,userId:string,sessionId:string){await tx.$executeRaw`select pg_advisory_xact_lock(hashtext(${`interview:${userId}`}))`;const balance=await creditBalance(userId,tx);if(balance.available<1)throw new Error("No interview credits are available.");await tx.$executeRaw`insert into public.interview_credit_ledger(user_id,session_id,event_type,available_delta,reserved_delta,idempotency_key) values(${userId}::uuid,${sessionId}::uuid,'reserve',-1,1,${`reserve:${sessionId}`}) on conflict(idempotency_key) do nothing`}
+export async function consumeCredit(tx:Prisma.TransactionClient,userId:string,sessionId:string){await tx.$executeRaw`insert into public.interview_credit_ledger(user_id,session_id,event_type,available_delta,reserved_delta,idempotency_key) values(${userId}::uuid,${sessionId}::uuid,'consume',0,-1,${`consume:${sessionId}`}) on conflict(idempotency_key) do nothing`}
