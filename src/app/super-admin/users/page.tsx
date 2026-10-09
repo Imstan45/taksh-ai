@@ -66,13 +66,13 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
       <section className="glass-card">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Platform users</h2><form className="flex flex-wrap gap-2"><input className="field max-w-64" name="q" placeholder="Search email" defaultValue={filters.q??""}/><select className="field max-w-48" name="role" defaultValue={filters.role??""}><option value="">All roles</option>{["STUDENT","FACULTY","COLLEGE_ADMIN","SUPER_ADMIN"].map(role=><option key={role}>{role}</option>)}</select><select className="field max-w-52" name="institution" defaultValue={filters.institution??""}><option value="">All institutions</option>{institutions.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select><button className="btn-ghost">Filter</button></form></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Platform users</h2><form className="flex flex-wrap gap-2"><input className="field max-w-64" name="q" placeholder="Search email" defaultValue={filters.q??""}/><select className="field max-w-48" name="role" defaultValue={filters.role??""}><option value="">All roles</option>{["STUDENT","FACULTY","COLLEGE_ADMIN","SALES_MANAGER","SUPER_ADMIN"].map(role=><option key={role}>{role}</option>)}</select><select className="field max-w-52" name="institution" defaultValue={filters.institution??""}><option value="">All institutions</option>{institutions.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select><button className="btn-ghost">Filter</button></form></div>
         <div className="mt-5 space-y-3">
           {users.map((user) => <div className="rounded-xl border border-white/10 p-4" key={user.id}>
             <ActionFeedbackForm action={updateUserAccess} successMessage={`${user.email} access updated successfully.`} pendingMessage="Updating user institution…" className="grid gap-3 md:grid-cols-[1fr_180px_220px_auto] md:items-center">
               <input type="hidden" name="userId" value={user.id}/>
               <div><b>{user.email}</b><p className="text-xs text-zinc-500">{user.id}</p></div>
-              <select className="field" name="role" defaultValue={user.role}>{["STUDENT","FACULTY","COLLEGE_ADMIN","SUPER_ADMIN"].map(role=><option value={role} key={role}>{role.replaceAll("_"," ")}</option>)}</select>
+              <select className="field" name="role" defaultValue={user.role}>{["STUDENT","FACULTY","COLLEGE_ADMIN","SALES_MANAGER","SUPER_ADMIN"].map(role=><option value={role} key={role}>{role.replaceAll("_"," ")}</option>)}</select>
               <select className="field" name="institutionId" defaultValue={user.institution_id??""}><option value="">No institution</option>{institutions.map(item=><option value={item.id} key={item.id}>{item.name} ({item.institution_type})</option>)}</select>
               <button className="btn-primary">Update assignment</button>
             </ActionFeedbackForm>

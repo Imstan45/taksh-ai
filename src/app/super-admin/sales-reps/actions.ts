@@ -8,6 +8,7 @@ import { salesReferralCode } from "@/lib/referrals/code";
 import { revalidatePath } from "next/cache";
 
 async function requireSuper() { const session=await auth(); if(!session?.user||session.user.role!=="SUPER_ADMIN") throw new Error("Super Admin access required."); return session.user; }
+async function requireSalesOperations() { const session=await auth(); if(!session?.user||!["SUPER_ADMIN","SALES_MANAGER"].includes(session.user.role)) throw new Error("Sales operations access required."); return session.user; }
 const refresh=()=>revalidatePath("/super-admin/sales-reps");
 
 export async function inviteSalesRep(formData: FormData) {
@@ -27,15 +28,28 @@ export async function inviteSalesRep(formData: FormData) {
 }
 
 export async function changeSalesRepStatus(formData:FormData){
-  const admin=await requireSuper(),id=String(formData.get("id")??""),status=String(formData.get("status")??"");
+  const admin=await requireSalesOperations(),id=String(formData.get("id")??""),status=String(formData.get("status")??"");
   if(!["active","suspended","rejected"].includes(status))throw new Error("Invalid status.");
   await prisma.$transaction(async tx=>{
     const current=(await tx.$queryRaw<Array<{user_id:string;full_name:string;status:string;referral_code:string|null}>>`select user_id,full_name,status,referral_code from public.sales_reps where id=${id}::uuid for update`)[0];
     if(!current)throw new Error("Sales Rep not found.");
+    if(admin.role==="SALES_MANAGER"&&current.user_id===admin.id)throw new Error("Sales Managers cannot change their own account status.");
     const code=current.referral_code??(status==="active"?salesReferralCode(current.full_name):null);
     await tx.$executeRaw`update public.sales_reps set status=${status},referral_code=${code},joined_at=case when ${status}='active' then coalesce(joined_at,now()) else joined_at end,approved_by=case when ${status}='active' then ${admin.id}::uuid else approved_by end,updated_at=now() where id=${id}::uuid`;
     await tx.$executeRaw`update public.user_roles set account_status=${status},authorization_version=authorization_version+1,updated_at=now() where user_id=${current.user_id}::uuid`;
     await tx.$executeRaw`insert into public.audit_logs(actor_id,action,target_type,target_id,previous_values,new_values) values(${admin.id}::uuid,'sales_rep.status_changed','sales_rep',${id},${JSON.stringify({status:current.status})}::jsonb,${JSON.stringify({status})}::jsonb)`;
+  });refresh();
+}
+
+export async function assignSalesManager(formData:FormData){
+  const admin=await requireSuper(),id=String(formData.get("id")??"");
+  await prisma.$transaction(async tx=>{
+    const rep=(await tx.$queryRaw<Array<{user_id:string;full_name:string;status:string;role:string}>>`select rep.user_id,rep.full_name,rep.status,role.role::text from public.sales_reps rep join public.user_roles role on role.user_id=rep.user_id where rep.id=${id}::uuid for update of rep,role`)[0];
+    if(!rep)throw new Error("Sales Rep not found.");
+    if(rep.status!=="active")throw new Error("Only an active Sales Rep can become Sales Manager.");
+    if(rep.role!=="SALES_REP")throw new Error("This account is no longer a Sales Rep.");
+    await tx.$executeRaw`update public.user_roles set role='SALES_MANAGER',account_status='active',authorization_version=authorization_version+1,updated_at=now() where user_id=${rep.user_id}::uuid and role='SALES_REP'`;
+    await tx.$executeRaw`insert into public.audit_logs(actor_id,action,target_type,target_id,previous_values,new_values) values(${admin.id}::uuid,'sales_rep.assigned_sales_manager','user',${rep.user_id},'{"role":"SALES_REP"}'::jsonb,'{"role":"SALES_MANAGER"}'::jsonb)`;
   });refresh();
 }
 

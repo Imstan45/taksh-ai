@@ -18,6 +18,10 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
     { href: "/sales-rep", label: "Sales dashboard" },
     { href: "/support", label: "Support" },
   ],
+  SALES_MANAGER: [
+    { href: "/super-admin/sales-reps", label: "Sales Reps" },
+    { href: "/super-admin/payments", label: "Payments" },
+  ],
   FACULTY: [
     { href: "/admin", label: "Faculty workspace" },
     { href: "/admin/students/onboard", label: "Add students" },
@@ -52,6 +56,7 @@ const navigation: Record<UserRole, Array<{ href: string; label: string }>> = {
 const roleIcon = {
   STUDENT: GraduationCap,
   SALES_REP: BriefcaseBusiness,
+  SALES_MANAGER: ShieldCheck,
   FACULTY: BookOpen,
   COLLEGE_ADMIN: Building2,
   SUPER_ADMIN: Sparkles,

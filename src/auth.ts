@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { loginSchema } from "@/lib/auth/validation";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
-import { roleHome, type UserRole } from "@/types/roles";
+import { isSalesManagerPath, roleHome, type UserRole } from "@/types/roles";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (roleError || !roleRecord) return null;
 
         const storedRole = roleRecord?.role;
-        if (!["STUDENT", "SALES_REP", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
+        if (!["STUDENT", "SALES_REP", "SALES_MANAGER", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(storedRole)) return null;
         const role = storedRole as UserRole;
         const canAuthenticate = roleRecord.account_status === "active" ||
           (role === "SALES_REP" && ["pending", "suspended", "rejected"].includes(roleRecord.account_status));
@@ -107,6 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return Response.redirect(loginUrl);
       }
       if (session.user.mustChangePassword) return Response.redirect(new URL("/change-password", request.nextUrl));
+      if (session.user.role === "SALES_MANAGER") return isSalesManagerPath(path);
       if (path.startsWith("/super-admin") || path.startsWith("/superadmin")) return session.user.role === "SUPER_ADMIN";
       if (path.startsWith("/admin")) return ["COLLEGE_ADMIN", "FACULTY"].includes(session.user.role);
       if (path.startsWith("/sales") || path.startsWith("/sales-rep")) return session.user.role === "SALES_REP";
