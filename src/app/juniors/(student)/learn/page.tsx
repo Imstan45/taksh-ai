@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { juniorsCurriculum } from "@/lib/juniors-curriculum";
+
+export default function CurriculumPage(){return <div className="js-content"><header className="js-page-head"><span className="j-eyebrow">Curriculum browser · v1.0</span><h1>Build your MPC foundation</h1><p>Move from subject to chapter to a focused, original lesson. More approved lessons will be released progressively.</p></header><div className="js-curriculum">{juniorsCurriculum.map(subject=><section key={subject.slug} className="js-subject"><header><span style={{background:subject.color}}>{subject.short}</span><div><h2>{subject.title}</h2><p>{subject.chapters.length} chapters · {subject.chapters.reduce((n,c)=>n+c.lessons.length,0)} published lesson</p></div></header><div>{subject.chapters.map(chapter=><Link key={chapter.slug} href={`/juniors/learn/${subject.slug}/${chapter.slug}`}><span><b>{chapter.title}</b><small>{chapter.description}</small></span><span>{chapter.lessons.length ? `${chapter.lessons.length} lesson` : "Coming soon"}<ArrowRight/></span></Link>)}</div></section>)}</div></div>}

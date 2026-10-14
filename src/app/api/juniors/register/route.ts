@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+
+const schema=z.object({name:z.string().trim().min(2).max(80),email:z.string().email().max(254).transform(v=>v.toLowerCase()),password:z.string().min(10).max(128),termsAccepted:z.literal(true),privacyAccepted:z.literal(true)});
+
+export async function POST(request:Request){const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:"Check your name, email, password and consent choices."},{status:400});const supabase=createSupabaseAdminClient();const {data,error}=await supabase.auth.admin.createUser({email:parsed.data.email,password:parsed.data.password,email_confirm:true,user_metadata:{full_name:parsed.data.name,product:"juniors"},app_metadata:{role:"STUDENT"}});if(error)return NextResponse.json({error:error.status===422?"An account already exists for this email.":error.message},{status:error.status===422?409:400});if(!data.user)return NextResponse.json({error:"Account creation did not finish."},{status:500});try{await prisma.$transaction(async tx=>{await tx.$executeRaw`insert into public.students(id,full_name,email) values(${data.user!.id}::uuid,${parsed.data.name},${parsed.data.email}) on conflict(id) do update set full_name=excluded.full_name,email=excluded.email,updated_at=now()`;await tx.$executeRaw`insert into public.juniors_profiles(user_id) values(${data.user!.id}::uuid) on conflict(user_id) do nothing`;});return NextResponse.json({ok:true},{status:201})}catch(reason){await supabase.auth.admin.deleteUser(data.user.id);throw reason}}
