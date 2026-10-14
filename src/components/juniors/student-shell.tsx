@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChevronLeft, FlaskConical, Gauge, LogOut, Menu, Sigma, Waves } from "lucide-react";
+import { BookOpen, ChevronLeft, FlaskConical, Gauge, LogOut, Menu, Sigma, Target, Waves } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 const items = [
   ["Dashboard", "/juniors/dashboard", Gauge],
   ["My learning", "/juniors/learn", BookOpen],
+  ["Practice", "/juniors/practice", Target],
   ["Mathematics", "/juniors/learn/mathematics/algebra", Sigma],
   ["Physics", "/juniors/learn/physics/mechanics", Waves],
   ["Chemistry", "/juniors/learn/chemistry/physical-chemistry", FlaskConical],

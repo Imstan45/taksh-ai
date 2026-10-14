@@ -100,7 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return Response.redirect(new URL(session?.user ? roleHome(session.user.role) : "/login", request.nextUrl));
       }
       if (path === "/assessment/job-readiness") return true;
-      const juniorsProtected = path.startsWith("/juniors/dashboard") || path.startsWith("/juniors/learn");
+      const juniorsProtected = path.startsWith("/juniors/dashboard") || path.startsWith("/juniors/learn") || path.startsWith("/juniors/practice") || path.startsWith("/juniors/results");
       if (!juniorsProtected && !path.startsWith("/sales") && !path.startsWith("/sales-rep") && !path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
       if (!session?.user) {
         const redirectBase = new URL(request.nextUrl);
