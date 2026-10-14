@@ -15,5 +15,10 @@ export async function getJuniorsProgress(userId: string) {
 export function juniorsSummary(progress: JuniorsProgress[]) {
   const completed = new Set(progress.filter(item => item.status === "completed").map(item => item.lesson_slug));
   const total = publishedJuniorsLessons.length;
-  return { completed, total, percent: total ? Math.round((completed.size / total) * 100) : 0 };
+  const subjects = ["mathematics", "physics", "chemistry"].map(slug => {
+    const lessons = publishedJuniorsLessons.filter(item => item.subject.slug === slug);
+    const done = lessons.filter(item => completed.has(item.lesson.slug)).length;
+    return { slug, done, total: lessons.length, percent: lessons.length ? Math.round(done / lessons.length * 100) : 0 };
+  });
+  return { completed, total, percent: total ? Math.round((completed.size / total) * 100) : 0, subjects };
 }

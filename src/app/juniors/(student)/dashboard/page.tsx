@@ -17,7 +17,7 @@ export default async function JuniorsDashboard() {
       <Stat icon={<BookOpen/>} label="Published lessons complete" value={`${summary.completed.size}/${summary.total}`} note={`${summary.percent}% complete`} />
     </section>
     <section className="js-panel"><div className="js-panel-head"><div><span className="j-eyebrow">Your learning</span><h2>Subject progress</h2></div><Link href="/juniors/learn">Browse curriculum →</Link></div>
-      <div className="js-subject-progress">{["Mathematics","Physics","Chemistry"].map(subject => <div key={subject}><p><b>{subject}</b><span>No lesson completed yet</span></p><i><em style={{width:"0%"}}/></i></div>)}</div>
+      <div className="js-subject-progress">{summary.subjects.map(subject => <div key={subject.slug}><p><b>{subject.slug[0].toUpperCase()+subject.slug.slice(1)}</b><span>{subject.done}/{subject.total} lessons</span></p><i><em style={{width:`${subject.percent}%`}}/></i></div>)}</div>
     </section>
     <section className="js-next"><div><span className="j-eyebrow">Recommended next activity</span><h2>Read quadratic roots</h2><p>Build a clean link between the discriminant and the nature of roots.</p></div><Link className="j-btn" href="/juniors/learn/mathematics/algebra">Start 12-minute lesson <ArrowRight/></Link></section>
   </div>;
