@@ -1,0 +1,7 @@
+export type JuniorsExam = { slug:string; shortName:string; fullName:string; region:string; description:string; subjects:string[]; highlights:string[]; version:string };
+
+export const juniorsExams:JuniorsExam[]=[
+  {slug:"tg-eapcet",shortName:"TG EAPCET",fullName:"Telangana Engineering, Agriculture & Pharmacy Common Entrance Test",region:"Telangana",description:"Build speed and accuracy with Telangana-focused MPC practice and timed mock tests.",subjects:["Mathematics","Physics","Chemistry"],highlights:["Chapter-wise drills","Timed practice","State exam focus"],version:"Demonstration pattern · 2026 example"},
+  {slug:"ap-eapcet",shortName:"AP EAPCET",fullName:"Andhra Pradesh Engineering, Agriculture & Pharmacy Common Entrance Test",region:"Andhra Pradesh",description:"Prepare systematically with syllabus-aligned learning, practice, and revision.",subjects:["Mathematics","Physics","Chemistry"],highlights:["Concept revision","Exam-style practice","Progress insights"],version:"Demonstration pattern · 2026 example"},
+  {slug:"jee-main",shortName:"JEE Main",fullName:"Joint Entrance Examination — Main",region:"National",description:"Strengthen concepts and problem-solving for India’s national engineering entrance exam.",subjects:["Mathematics","Physics","Chemistry"],highlights:["MCQ + numerical","Negative marking ready","Concept depth"],version:"Demonstration pattern · 2026 example"},
+];
