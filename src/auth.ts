@@ -103,7 +103,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const juniorsProtected = path.startsWith("/juniors/dashboard") || path.startsWith("/juniors/learn");
       if (!juniorsProtected && !path.startsWith("/sales") && !path.startsWith("/sales-rep") && !path.startsWith("/diagnostic") && !path.startsWith("/dashboard") && !path.startsWith("/profile") && !path.startsWith("/continue-learning") && !path.startsWith("/student") && !path.startsWith("/assessment") && !path.startsWith("/profiling") && !path.startsWith("/learning-style") && !path.startsWith("/billing") && !path.startsWith("/checkout") && !path.startsWith("/payment-success") && !path.startsWith("/admin") && !path.startsWith("/super-admin") && !path.startsWith("/superadmin")) return true;
       if (!session?.user) {
-        const loginUrl = new URL(path.startsWith("/sales") || path.startsWith("/sales-rep") ? "/sales/login" : juniorsProtected ? "/juniors/login" : "/login", request.nextUrl);
+        const redirectBase = new URL(request.nextUrl);
+        const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+        if (forwardedHost) {
+          redirectBase.host = forwardedHost;
+          redirectBase.protocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "http" ? "http:" : "https:";
+        }
+        const loginUrl = new URL(path.startsWith("/sales") || path.startsWith("/sales-rep") ? "/sales/login" : juniorsProtected ? "/juniors/login" : "/login", redirectBase);
         loginUrl.searchParams.set("callbackUrl", path);
         return Response.redirect(loginUrl);
       }
