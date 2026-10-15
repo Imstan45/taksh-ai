@@ -1,0 +1,12 @@
+begin;
+alter table public.juniors_practice_sessions add column session_type text not null default 'practice' check(session_type in('practice','mock'));
+alter table public.juniors_practice_sessions add column duration_minutes smallint check(duration_minutes between 1 and 240);
+alter table public.juniors_practice_sessions add column expires_at timestamptz;
+alter table public.juniors_practice_session_questions add column marked_for_review boolean not null default false;
+alter table public.juniors_responses add column updated_at timestamptz not null default now();
+grant update on public.juniors_practice_session_questions to authenticated;
+grant delete,update on public.juniors_responses to authenticated;
+create policy "session questions owner update" on public.juniors_practice_session_questions for update to authenticated using(exists(select 1 from public.juniors_practice_sessions s where s.id=session_id and s.user_id=(select auth.uid()) and s.status='active')) with check(exists(select 1 from public.juniors_practice_sessions s where s.id=session_id and s.user_id=(select auth.uid()) and s.status='active'));
+create policy "responses owner update" on public.juniors_responses for update to authenticated using(exists(select 1 from public.juniors_practice_sessions s where s.id=session_id and s.user_id=(select auth.uid()) and s.status='active')) with check(exists(select 1 from public.juniors_practice_sessions s where s.id=session_id and s.user_id=(select auth.uid()) and s.status='active'));
+create policy "responses owner delete" on public.juniors_responses for delete to authenticated using(exists(select 1 from public.juniors_practice_sessions s where s.id=session_id and s.user_id=(select auth.uid()) and s.status='active'));
+commit;

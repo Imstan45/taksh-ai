@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChevronLeft, FlaskConical, Gauge, LogOut, Menu, Sigma, Target, Waves } from "lucide-react";
+import { BarChart3, BookOpen, BookmarkX, ChevronLeft, ClipboardCheck, FlaskConical, Gauge, LogOut, Menu, Sigma, Target, Waves } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
@@ -10,6 +10,9 @@ const items = [
   ["Dashboard", "/juniors/dashboard", Gauge],
   ["My learning", "/juniors/learn", BookOpen],
   ["Practice", "/juniors/practice", Target],
+  ["Mock tests", "/juniors/mocks", ClipboardCheck],
+  ["Mistake notebook", "/juniors/mistakes", BookmarkX],
+  ["Performance", "/juniors/performance", BarChart3],
   ["Mathematics", "/juniors/learn/mathematics/algebra", Sigma],
   ["Physics", "/juniors/learn/physics/mechanics", Waves],
   ["Chemistry", "/juniors/learn/chemistry/physical-chemistry", FlaskConical],
