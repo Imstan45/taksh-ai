@@ -19,7 +19,7 @@ const items = [
   [BrainCircuit, "Diagnostic bank", "/super-admin/diagnostic"],
   [BarChart3, "Analytics", "/super-admin/analytics"],
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
-  [GraduationCap, "Taksh Juniors", "/juniors"],
+  [GraduationCap, "Taksh Juniors", "/super-admin/juniors"],
   [ShieldCheck, "Governance", "/super-admin/governance"],
   [ClipboardList, "Audit history", "/super-admin/audit"],
   [LifeBuoy, "Support inbox", "/super-admin/support"],
