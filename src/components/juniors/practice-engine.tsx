@@ -12,17 +12,21 @@ export function PracticeEngine({ sessionId, questions, expiresAt }: { sessionId:
   const [numerical, setNumerical] = useState<Record<string, string>>(Object.fromEntries(questions.filter((question) => question.numericalAnswer !== null).map((question) => [question.id, question.numericalAnswer!])));
   const [review, setReview] = useState<Record<string, boolean>>(Object.fromEntries(questions.map((question) => [question.id, question.markedForReview])));
   const [busy, setBusy] = useState(false);
-  const [remaining, setRemaining] = useState(expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : null);
+  const [remaining, setRemaining] = useState<number | null>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const submitRef = useRef<() => Promise<void>>(async () => undefined);
   const question = questions[index];
   const answeredCount = new Set([...Object.keys(options), ...Object.keys(numerical).filter((id) => numerical[id].trim() !== "")]).size;
 
   useEffect(() => {
-    if (remaining === null) return;
-    const timer = setInterval(() => setRemaining((value) => value === null ? null : Math.max(0, value - 1)), 1000);
+    if (!expiresAt) return;
+    const deadline = new Date(expiresAt).getTime();
+    const updateClock = () => setRemaining(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
     return () => clearInterval(timer);
-  }, [remaining === null]);
-  useEffect(() => { if (remaining === 0) void submit(); }, [remaining]);
+  }, [expiresAt]);
+  useEffect(() => { if (remaining === 0) void submitRef.current(); }, [remaining]);
   useEffect(() => () => Object.values(timers.current).forEach(clearTimeout), []);
 
   async function persist(id: string, selectedOption: number | null, numericalAnswer: string | null, markedForReview: boolean) {
@@ -66,6 +70,7 @@ export function PracticeEngine({ sessionId, questions, expiresAt }: { sessionId:
     const payload = await response.json() as { resultUrl?: string };
     if (payload.resultUrl) router.push(payload.resultUrl); else setBusy(false);
   }
+  useEffect(() => { submitRef.current = submit; });
 
   const clock = remaining === null ? null : `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`;
   return <div className="jp-engine"><header><span>Question {index + 1} of {questions.length}</span><b>{clock && `Time ${clock} · `}{answeredCount} answered</b></header><div className="jp-layout"><aside>{questions.map((item, itemIndex) => <button key={item.id} onClick={() => setIndex(itemIndex)} className={`${itemIndex === index ? "active" : ""} ${options[item.id] !== undefined || numerical[item.id] !== undefined ? "answered" : ""} ${review[item.id] ? "review" : ""}`}>{itemIndex + 1}</button>)}</aside><article><span className="j-eyebrow">{question.subject} · {question.topic}</span><h1>{question.prompt}</h1>{question.question_type === "mcq" ? <div className="jp-options">{question.options.map((option, optionIndex) => <button key={option} onClick={() => void saveOption(optionIndex)} className={options[question.id] === optionIndex ? "selected" : ""}><i>{String.fromCharCode(65 + optionIndex)}</i>{option}</button>)}</div> : <label className="jp-numerical">Numerical answer<input aria-label="Numerical answer" autoComplete="off" inputMode="decimal" placeholder="Enter a number" value={numerical[question.id] ?? ""} onChange={(event) => saveNumerical(event.target.value)} /><small>Numbers only. Your response is saved automatically.</small></label>}<div className="jp-tools"><button onClick={() => void clearResponse()}>Clear response</button><button onClick={() => void toggleReview()}>{review[question.id] ? "Remove review mark" : "Mark for review"}</button><span>Saved automatically</span></div><footer><button className="j-btn j-btn-outline" disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous</button>{index < questions.length - 1 ? <button className="j-btn" onClick={() => setIndex(index + 1)}>Next</button> : <button className="j-btn" disabled={busy} onClick={() => void submit()}>Submit session</button>}</footer></article></div></div>;

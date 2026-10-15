@@ -16,5 +16,5 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
     where s.id=${sessionId}::uuid and s.user_id=${user!.user.id}::uuid order by sq.display_order`;
   if (!rows.length) notFound();
   if (rows[0].status === "submitted") redirect(`/juniors/results/${sessionId}`);
-  return <div className="js-content"><PracticeEngine sessionId={sessionId} expiresAt={rows[0].expires_at?.toISOString() ?? null} questions={rows.map(({ status: _, expires_at: __, selected_option, numerical_response, marked_for_review, ...question }) => ({ ...question, options: Array.isArray(question.options) ? question.options.map(String) : [], selectedOption: selected_option, numericalAnswer: numerical_response, markedForReview: marked_for_review }))} /></div>;
+  return <div className="js-content"><PracticeEngine sessionId={sessionId} expiresAt={rows[0].expires_at?.toISOString() ?? null} questions={rows.map((row) => ({ id: row.id, subject: row.subject, topic: row.topic, prompt: row.prompt, question_type: row.question_type, options: Array.isArray(row.options) ? row.options.map(String) : [], selectedOption: row.selected_option, numericalAnswer: row.numerical_response, markedForReview: row.marked_for_review }))} /></div>;
 }
