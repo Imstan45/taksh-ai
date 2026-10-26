@@ -16,6 +16,7 @@ const items = [
   [Sparkles, "Campaigns", "/super-admin/campaigns"],
   [Trophy, "Sales Challenge", "/super-admin/sales-challenge"],
   [Users, "Sales Reps", "/super-admin/sales-reps"],
+  [ClipboardList, "Assessment Results", "/super-admin/assessment-results"],
   [BrainCircuit, "Diagnostic bank", "/super-admin/diagnostic"],
   [BarChart3, "Analytics", "/super-admin/analytics"],
   [Sparkles, "Content Factory", "/superadmin/content-factory"],
