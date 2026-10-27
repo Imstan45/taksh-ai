@@ -1,0 +1,3 @@
+import { SalesResetPasswordForm } from "@/components/sales/sales-password-reset";
+import { SalesPortalShell } from "@/components/sales/sales-portal-shell";
+export default function SalesResetPasswordPage() { return <SalesPortalShell compact><main className="mx-auto grid min-h-[calc(100vh-65px)] max-w-5xl place-items-center px-5 py-12"><section className="w-full max-w-md border border-zinc-200 bg-white p-7 shadow-sm sm:p-9"><p className="text-sm font-semibold text-violet-700">Taksh AI Sales Network</p><h1 className="mt-3 text-3xl font-semibold">Choose a new password</h1><p className="mt-3 text-sm leading-6 text-zinc-600">This page works only from the secure reset link in your email.</p><SalesResetPasswordForm/></section></main></SalesPortalShell>; }

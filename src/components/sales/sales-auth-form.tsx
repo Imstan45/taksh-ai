@@ -28,7 +28,7 @@ export function SalesLoginForm() {
   return <form className="mt-8 space-y-4" onSubmit={submit}>
     <SalesField label="Email address" name="email" type="email" autoComplete="email" placeholder="you@organization.com" />
     <SalesField label="Password" name="password" type="password" autoComplete="current-password" />
-    <div className="flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-zinc-600"><input name="rememberMe" type="checkbox" className="accent-violet-700"/>Remember me</label><Link className="font-medium text-violet-700" href="/forgot-password">Forgot password?</Link></div>
+    <div className="flex items-center justify-between text-sm"><label className="flex items-center gap-2 text-zinc-600"><input name="rememberMe" type="checkbox" className="accent-violet-700"/>Remember me</label><Link className="font-medium text-violet-700" href="/sales/forgot-password">Forgot password?</Link></div>
     <SalesMessage message={message}/>
     <button className="sales-primary-button w-full" disabled={busy}>{busy&&<LoaderCircle className="size-4 animate-spin"/>}Sign in</button>
   </form>;
