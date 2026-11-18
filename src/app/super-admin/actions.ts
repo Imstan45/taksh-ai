@@ -41,10 +41,10 @@ export async function updateUserAccess(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
   let institutionId = String(formData.get("institutionId") ?? "");
-  if (!["STUDENT", "FACULTY", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(role)) throw new Error("Invalid role.");
+  if (!["STUDENT", "SALES_REP", "FACULTY", "COLLEGE_ADMIN", "SALES_MANAGER", "SUPER_ADMIN"].includes(role)) throw new Error("Invalid role.");
   if (session.user.id === userId && role !== "SUPER_ADMIN") throw new Error("You cannot demote your own Super Admin account.");
   if (["STUDENT", "FACULTY", "COLLEGE_ADMIN"].includes(role) && !institutionId) throw new Error("This role requires an institution.");
-  if (role === "SUPER_ADMIN") institutionId = "";
+  if (["SALES_REP", "SUPER_ADMIN", "SALES_MANAGER"].includes(role)) institutionId = "";
   if (institutionId) {
     const institution = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM public.institutions WHERE id=${institutionId}::uuid AND status='active'`;

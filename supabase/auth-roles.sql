@@ -5,11 +5,12 @@ create extension if not exists pgcrypto;
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'app_role' and typnamespace = 'public'::regnamespace) then
-    create type public.app_role as enum ('STUDENT', 'FACULTY', 'COLLEGE_ADMIN', 'SUPER_ADMIN');
+    create type public.app_role as enum ('STUDENT', 'FACULTY', 'COLLEGE_ADMIN', 'SUPER_ADMIN', 'SALES_MANAGER');
   end if;
 end $$;
 
 alter type public.app_role add value if not exists 'FACULTY' after 'STUDENT';
+alter type public.app_role add value if not exists 'SALES_MANAGER';
 
 create table if not exists public.institutions (
   id uuid primary key default gen_random_uuid(),
